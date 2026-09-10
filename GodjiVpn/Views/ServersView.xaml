@@ -1,0 +1,182 @@
+<UserControl x:Class="GodjiVpn.Views.ServersView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid Background="{DynamicResource BgBrush}" Margin="18,18,18,10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Margin="0,0,0,14" VerticalAlignment="Bottom">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+                <TextBlock Text="Где выйти в сеть" Style="{StaticResource Headline}" FontSize="26"/>
+                <TextBlock FontFamily="{StaticResource ManropeMediumFamily}" FontSize="10.5" Foreground="{DynamicResource TextMutedBrush}" Margin="0,3,0,0">
+                    <Run Text="{Binding Nodes.Count, Mode=OneWay}"/><Run Text=" узлов в подписке"/>
+                </TextBlock>
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Bottom">
+                <Button Style="{StaticResource SecondaryButton}" Padding="10,7" FontSize="11" Margin="0,0,8,0"
+                        Command="{Binding RefreshCommand}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock FontSize="12" Foreground="{DynamicResource TerracottaBrush}">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Text" Value="⟳"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsRefreshing}" Value="True">
+                                            <Setter Property="Text" Value="…"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        <TextBlock Text=" Обновить" FontFamily="{StaticResource ManropeSemiBoldFamily}" FontSize="11" Margin="2,0,0,0"/>
+                    </StackPanel>
+                </Button>
+                <Button Style="{StaticResource SecondaryButton}" Padding="10,7" FontSize="11" Margin="0,0,8,0"
+                        Command="{Binding PingAllCommand}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock FontSize="12" Foreground="{DynamicResource TealDeepBrush}">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Text" Value="⚡"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsCheckingAll}" Value="True">
+                                            <Setter Property="Text" Value="…"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        <TextBlock Text=" Пинг" FontFamily="{StaticResource ManropeSemiBoldFamily}" FontSize="11" Margin="2,0,0,0"/>
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+        </Grid>
+
+        <!-- Баннер-результат ручного "Обновить" -->
+        <Border Grid.Row="1" Margin="0,0,0,10" CornerRadius="12" Padding="10,7" BorderThickness="1"
+                Visibility="{Binding RefreshResultMessage, Converter={StaticResource NullToVisibilityConverter}}">
+            <Border.Style>
+                <Style TargetType="Border">
+                    <Setter Property="Background" Value="{DynamicResource TealTintBrush}"/>
+                    <Setter Property="BorderBrush" Value="{DynamicResource TealTintBorderBrush}"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding RefreshResultIsError}" Value="True">
+                            <Setter Property="Background" Value="#F7E2D8"/>
+                            <Setter Property="BorderBrush" Value="#E4B49B"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock VerticalAlignment="Center">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Text" Value="✅"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding RefreshResultIsError}" Value="True">
+                                    <Setter Property="Text" Value="⚠️"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+                <TextBlock Grid.Column="1" Text="{Binding RefreshResultMessage}" TextWrapping="Wrap" FontSize="11"
+                           FontFamily="{StaticResource ManropeMediumFamily}" Margin="8,0" VerticalAlignment="Center"/>
+                <Button Grid.Column="2" Content="×" Style="{StaticResource LinkButton}" FontSize="14"
+                        Command="{Binding DismissRefreshResultCommand}"/>
+            </Grid>
+        </Border>
+
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+            <ItemsControl ItemsSource="{Binding Nodes}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border CornerRadius="14" Padding="12" Margin="0,0,0,6" BorderThickness="1.5">
+                            <Border.InputBindings>
+                                <MouseBinding MouseAction="LeftClick"
+                                              Command="{Binding DataContext.SelectCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                              CommandParameter="{Binding}"/>
+                            </Border.InputBindings>
+                            <Border.Style>
+                                <Style TargetType="Border" BasedOn="{StaticResource PressScaleBorder}">
+                                    <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+                                    <Setter Property="BorderBrush" Value="{DynamicResource CardBorderBrush}"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                            <Setter Property="Background" Value="{DynamicResource TealTintBrush}"/>
+                                            <Setter Property="BorderBrush" Value="{DynamicResource TealBrush}"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <Border Width="28" Height="28" Background="{DynamicResource ChipBrush}" CornerRadius="8" ClipToBounds="True">
+                                    <Grid>
+                                        <!-- WPF не умеет составлять regional-indicator эмодзи в картинку флага
+                                             (показывает голый текст вроде "DE") — реальная картинка из
+                                             Assets/Images/Flags, эмодзи остаётся только generic-фоллбэком
+                                             (🌐), когда для страны нет своего флага. -->
+                                        <Image Source="{Binding FlagImagePath}" Stretch="UniformToFill"
+                                               Visibility="{Binding FlagImagePath, Converter={StaticResource NullToVisibilityConverter}}"/>
+                                        <TextBlock Text="{Binding Flag}" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                   Visibility="{Binding FlagImagePath, Converter={StaticResource InverseNullToVisibilityConverter}}"/>
+                                    </Grid>
+                                </Border>
+
+                                <TextBlock Grid.Column="1" Text="{Binding DisplayName}" FontFamily="{StaticResource ManropeSemiBoldFamily}"
+                                           FontSize="12" VerticalAlignment="Center" Margin="10,0"/>
+
+                                <Button Grid.Column="2" FontSize="11" Padding="4"
+                                        Command="{Binding DataContext.PingOneCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                        CommandParameter="{Binding}">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource LinkButton}">
+                                            <Setter Property="Content" Value="{Binding PingMs, StringFormat={}{0} мс}"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsChecking}" Value="True">
+                                                    <Setter Property="Content" Value="…"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding PingMs}" Value="-2">
+                                                    <Setter Property="Content" Value="проверить"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding PingMs}" Value="-1">
+                                                    <Setter Property="Content" Value="недоступен"/>
+                                                    <Setter Property="Foreground" Value="{DynamicResource DangerBrush}"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+
+                                <Button Grid.Column="3" Content="🗑" FontSize="11" Padding="6,4" Margin="4,0,0,0"
+                                        Style="{StaticResource LinkButton}"
+                                        Visibility="{Binding IsCustom, Converter={StaticResource BoolToVisibilityConverter}}"
+                                        Command="{Binding DataContext.RemoveCustomNodeCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                        CommandParameter="{Binding}"/>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

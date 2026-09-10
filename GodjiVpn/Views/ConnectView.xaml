@@ -1,0 +1,234 @@
+<UserControl x:Class="GodjiVpn.Views.ConnectView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:GodjiVpn.Controls">
+    <Grid Background="{DynamicResource BgBrush}">
+        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16,14,16,10">
+            <StackPanel>
+
+                <!-- Заголовок -->
+                <Grid Margin="0,0,0,11">
+                    <StackPanel Orientation="Horizontal">
+                        <Image Source="pack://application:,,,/Assets/Images/logo.png" Width="30" Height="30"/>
+                        <TextBlock Text="Goji" FontFamily="{StaticResource ManropeExtraBoldFamily}" FontSize="19"
+                                   VerticalAlignment="Center" Margin="8,0,0,0"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Глобус — приветствие снова оверлеем поверх (GlobeHost использует
+                     WebView2CompositionControl, которая, в отличие от обычного WebView2,
+                     умеет отдавать WPF-контенту рисоваться поверх себя). -->
+                <Border Height="230" CornerRadius="24" Background="{DynamicResource SurfaceBrush}"
+                        BorderBrush="{DynamicResource CardBorderStrongBrush}" BorderThickness="1" Margin="0,0,0,11"
+                        ClipToBounds="True">
+                    <Grid>
+                        <controls:GlobeHost x:Name="Globe"/>
+                        <StackPanel HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,14,16,0"
+                                    Visibility="{Binding IsConnected, Converter={StaticResource BoolToVisibilityConverter}}">
+                            <TextBlock Text="{Binding GreetingHi}" Style="{StaticResource Headline}" FontSize="28" HorizontalAlignment="Right"/>
+                            <TextBlock Text="{Binding GreetingSub}" FontFamily="{StaticResource ManropeSemiBoldFamily}" FontSize="8.5"
+                                       Foreground="{DynamicResource TextMutedBrush}" HorizontalAlignment="Right"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Заголовок статуса + кнопка -->
+                <Grid Margin="0,0,0,11">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel VerticalAlignment="Bottom" Margin="0,0,10,0">
+                        <TextBlock Text="{Binding Headline}" Style="{StaticResource Headline}" FontSize="25" TextWrapping="Wrap"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                            <Ellipse Width="8" Height="8" Tag="pulse" VerticalAlignment="Center">
+                                <Ellipse.Style>
+                                    <Style TargetType="Ellipse" BasedOn="{StaticResource PulseDot}">
+                                        <Setter Property="Fill" Value="{DynamicResource ButtonBorderBrush}"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsConnecting}" Value="True">
+                                                <Setter Property="Fill" Value="{DynamicResource WarningBrush}"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding IsConnected}" Value="True">
+                                                <Setter Property="Fill" Value="{DynamicResource TealBrush}"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Ellipse.Style>
+                            </Ellipse>
+                            <TextBlock Text="{Binding Subline}" FontFamily="{StaticResource ManropeSemiBoldFamily}" FontSize="11.5"
+                                       Foreground="{DynamicResource TextMutedBrush}" Margin="6,0,0,0" TextTrimming="CharacterEllipsis"/>
+                            <TextBlock Text="·" Margin="6,0,6,0" Foreground="{DynamicResource TextMutedBrush}"
+                                       Visibility="{Binding IsConnected, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                            <TextBlock Text="{Binding ConnectedTimeLabel}" FontFamily="{StaticResource ManropeFamily}" FontWeight="Bold" FontSize="13"
+                                       Visibility="{Binding IsConnected, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Светящийся пульсирующий ореол вокруг кнопки — по мотивам drawBehind{}-
+                         ореола в ConnectScreen.kt (Android): во время подключения — оттенок
+                         WarningBrush (тот же, что у статусной точки в момент "connecting"), в
+                         подключённом состоянии — спокойное "дыхание" тилом, в отключённом
+                         ореола нет вовсе. Живой цветовой переход тил↔терракота из Android-
+                         версии здесь не переносился — WPF Style-триггеры (в отличие от
+                         ControlTemplate) не умеют Storyboard.TargetName на именованный дочерний
+                         элемент, а ради одной детали городить отдельный ControlTemplate не
+                         стоило; статичный цвет на состояние "подключение" даёт тот же смысл. -->
+                    <Grid Grid.Column="1" VerticalAlignment="Bottom">
+                        <Ellipse x:Name="CtaGlow" Width="220" Height="130" IsHitTestVisible="False"
+                                 HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0">
+                            <Ellipse.Style>
+                                <Style TargetType="Ellipse">
+                                    <Setter Property="Fill">
+                                        <Setter.Value>
+                                            <RadialGradientBrush>
+                                                <GradientStop Color="#8000A79B" Offset="0"/>
+                                                <GradientStop Color="#0000A79B" Offset="1"/>
+                                            </RadialGradientBrush>
+                                        </Setter.Value>
+                                    </Setter>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsConnected}" Value="True">
+                                            <DataTrigger.EnterActions>
+                                                <BeginStoryboard Name="CtaGlowPulse">
+                                                    <Storyboard RepeatBehavior="Forever" AutoReverse="True">
+                                                        <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0.5" To="1" Duration="0:0:1.2"/>
+                                                    </Storyboard>
+                                                </BeginStoryboard>
+                                            </DataTrigger.EnterActions>
+                                            <DataTrigger.ExitActions>
+                                                <StopStoryboard BeginStoryboardName="CtaGlowPulse"/>
+                                            </DataTrigger.ExitActions>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IsConnecting}" Value="True">
+                                            <Setter Property="Fill">
+                                                <Setter.Value>
+                                                    <RadialGradientBrush>
+                                                        <GradientStop Color="#80C9911F" Offset="0"/>
+                                                        <GradientStop Color="#00C9911F" Offset="1"/>
+                                                    </RadialGradientBrush>
+                                                </Setter.Value>
+                                            </Setter>
+                                            <DataTrigger.EnterActions>
+                                                <BeginStoryboard Name="CtaGlowPulse2">
+                                                    <Storyboard RepeatBehavior="Forever" AutoReverse="True">
+                                                        <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0.5" To="1" Duration="0:0:1.2"/>
+                                                    </Storyboard>
+                                                </BeginStoryboard>
+                                            </DataTrigger.EnterActions>
+                                            <DataTrigger.ExitActions>
+                                                <StopStoryboard BeginStoryboardName="CtaGlowPulse2"/>
+                                            </DataTrigger.ExitActions>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Ellipse.Style>
+                        </Ellipse>
+
+                        <Button Height="44" MinWidth="120" Command="{Binding ToggleCommand}">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource PressScaleButtonBase}">
+                                    <Setter Property="Background" Value="{DynamicResource TealBrush}"/>
+                                    <Setter Property="Foreground" Value="{DynamicResource SurfaceBrush}"/>
+                                    <Setter Property="Content" Value="Включить"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsConnected}" Value="True">
+                                            <Setter Property="Background" Value="{DynamicResource DangerBrush}"/>
+                                            <Setter Property="Content" Value="Отключить"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IsConnecting}" Value="True">
+                                            <Setter Property="Background" Value="{DynamicResource DangerBrush}"/>
+                                            <Setter Property="Content" Value="Отключить"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                    </Grid>
+                </Grid>
+
+                <!-- Скорость -->
+                <Grid Margin="0,0,0,11">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="9"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="16" Padding="13">
+                        <StackPanel>
+                            <TextBlock Text="СКАЧИВАНИЕ" FontFamily="{StaticResource ManropeExtraBoldFamily}" FontSize="9.5" Foreground="{DynamicResource TextMutedBrush}"/>
+                            <TextBlock FontFamily="{StaticResource ManropeExtraBoldFamily}" FontSize="17" Foreground="{DynamicResource TealBrush}" Margin="0,3,0,0">
+                                <Run Text="↓ "/><Run Text="{Binding DownSpeedMbps, StringFormat={}{0:0.0}, Mode=OneWay}"/><Run Text=" МБ/с"/>
+                            </TextBlock>
+                        </StackPanel>
+                    </Border>
+                    <Border Grid.Column="2" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="16" Padding="13">
+                        <StackPanel>
+                            <TextBlock Text="ОТДАЧА" FontFamily="{StaticResource ManropeExtraBoldFamily}" FontSize="9.5" Foreground="{DynamicResource TextMutedBrush}"/>
+                            <TextBlock FontFamily="{StaticResource ManropeExtraBoldFamily}" FontSize="17" Foreground="{DynamicResource TerracottaBrush}" Margin="0,3,0,0">
+                                <Run Text="↑ "/><Run Text="{Binding UpSpeedMbps, StringFormat={}{0:0.0}, Mode=OneWay}"/><Run Text=" МБ/с"/>
+                            </TextBlock>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <!-- Текущий узел -->
+                <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="16" Padding="11" Margin="0,0,0,11">
+                    <StackPanel Orientation="Horizontal">
+                        <Border Width="36" Height="36" Background="{DynamicResource ChipBrush}" CornerRadius="10" ClipToBounds="True">
+                            <Grid>
+                                <Image Source="{Binding CurrentFlagImagePath}" Stretch="UniformToFill"
+                                       Visibility="{Binding CurrentFlagImagePath, Converter={StaticResource NullToVisibilityConverter}}"/>
+                                <TextBlock Text="{Binding CurrentFlag}" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                           Visibility="{Binding CurrentFlagImagePath, Converter={StaticResource InverseNullToVisibilityConverter}}"/>
+                            </Grid>
+                        </Border>
+                        <StackPanel Margin="10,0,0,0" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding CurrentNodeName}" FontFamily="{StaticResource ManropeSemiBoldFamily}" FontSize="13"/>
+                            <TextBlock Text="{Binding CurrentNodeMeta}" FontFamily="{StaticResource ManropeMediumFamily}" FontSize="10.5"
+                                       Foreground="{DynamicResource TextMutedBrush}"
+                                       Visibility="{Binding CurrentNodeMeta, Converter={StaticResource NullToVisibilityConverter}}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Text="{Binding ErrorMessage}" Foreground="{DynamicResource DangerBrush}" FontSize="11"
+                           TextWrapping="Wrap" HorizontalAlignment="Center" Margin="0,0,0,11"
+                           Visibility="{Binding ErrorMessage, Converter={StaticResource NullToVisibilityConverter}}"/>
+
+                <!-- Трафик -->
+                <Border Background="{DynamicResource ChipBrush}" BorderBrush="{DynamicResource CardBorderStrongBrush}" BorderThickness="1"
+                        CornerRadius="16" Padding="13" Style="{StaticResource PressScaleBorder}"
+                        MouseLeftButtonUp="OnTrafficClick">
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Трафик" FontFamily="{StaticResource ManropeSemiBoldFamily}" FontSize="11"/>
+                            <TextBlock Grid.Column="1" FontFamily="{StaticResource ManropeExtraBoldFamily}" FontSize="12"
+                                       Visibility="{Binding IsUnlimited, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+                                <Run Text="{Binding UsedGb, StringFormat={}{0:0.0}, Mode=OneWay}"/>
+                                <Run Text="/"/>
+                                <Run Text="{Binding QuotaGb, StringFormat={}{0:0.0} ГБ, Mode=OneWay}"/>
+                            </TextBlock>
+                            <TextBlock Grid.Column="1" FontFamily="{StaticResource ManropeExtraBoldFamily}" FontSize="12"
+                                       Text="{Binding UsedGb, StringFormat={}{0:0.0} ГБ / ∞, Mode=OneWay}"
+                                       Visibility="{Binding IsUnlimited, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                        </Grid>
+
+                        <controls:TrafficBar Value="{Binding UsedGb}" Maximum="{Binding QuotaGb}" Margin="0,8,0,0"
+                                              Visibility="{Binding IsUnlimited, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
+
+                        <TextBlock Margin="0,8,0,0" FontFamily="{StaticResource ManropeMediumFamily}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}">
+                            <Run Text="Подписка до "/><Run Text="{Binding ExpiryLabel, Mode=OneWay}"/>
+                            <Run Text=" · осталось "/><Run Text="{Binding DaysLeft, Mode=OneWay}"/><Run Text=" дней"/>
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

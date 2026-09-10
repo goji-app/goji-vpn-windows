@@ -1,0 +1,23 @@
+<Window x:Class="GodjiVpn.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Godji VPN" Height="860" Width="460"
+        MinHeight="640" MinWidth="380"
+        Background="{DynamicResource BgBrush}"
+        Icon="pack://application:,,,/Assets/Images/logo.png"
+        WindowStartupLocation="CenterScreen"
+        UseLayoutRounding="True"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType"
+        RenderOptions.BitmapScalingMode="HighQuality">
+    <!-- Весь макет рассчитан на мобильную ширину (~460). Без ограничения сверху окно
+         можно развернуть/растянуть на весь широкий монитор — тогда каждая кнопка/карточка
+         внутри StackPanel (HorizontalAlignment по умолчанию Stretch) растягивалась бы на
+         всю ширину экрана, ломая пропорции макета. MaxWidth здесь ограничивает реальную
+         ширину контента, а Stretch-выравнивание при MaxWidth меньше доступного места
+         центрирует его — по бокам просто виден тот же BgBrush, как в приложениях с
+         мобильной вёрсткой на десктопе (Telegram Desktop и т.п.). -->
+    <Border Background="{DynamicResource BgBrush}">
+        <ContentControl Content="{Binding CurrentViewModel}" MaxWidth="520" HorizontalAlignment="Stretch"/>
+    </Border>
+</Window>

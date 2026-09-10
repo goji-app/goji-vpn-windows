@@ -1,0 +1,25 @@
+<UserControl x:Class="GodjiVpn.Controls.TrafficBar"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Height="8">
+    <Border Background="{DynamicResource TrackBgBrush}" CornerRadius="4" ClipToBounds="True">
+        <Grid HorizontalAlignment="Left">
+            <Border x:Name="Fill" Background="{DynamicResource TealBrush}" CornerRadius="4" Width="0" ClipToBounds="True">
+                <!-- Бегущий блик — 30%-широкая полупрозрачная белая полоса, бесконечно
+                     скользящая слева направо (AnimatedTrafficBar в Android). -->
+                <Border x:Name="Shimmer" HorizontalAlignment="Left">
+                    <Border.RenderTransform>
+                        <TranslateTransform x:Name="ShimmerTransform"/>
+                    </Border.RenderTransform>
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                            <GradientStop Color="#00FFFFFF" Offset="0"/>
+                            <GradientStop Color="#4DFFFFFF" Offset="0.5"/>
+                            <GradientStop Color="#00FFFFFF" Offset="1"/>
+                        </LinearGradientBrush>
+                    </Border.Background>
+                </Border>
+            </Border>
+        </Grid>
+    </Border>
+</UserControl>

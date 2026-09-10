@@ -1,0 +1,35 @@
+<UserControl x:Class="GodjiVpn.Views.ShellView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid Background="{DynamicResource BgBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0">
+            <ContentControl Content="{Binding Connect}"
+                             Visibility="{Binding SelectedTabIndex, Converter={StaticResource IntEqualsToVisibilityConverter}, ConverterParameter=0}"/>
+            <ContentControl Content="{Binding Servers}"
+                             Visibility="{Binding SelectedTabIndex, Converter={StaticResource IntEqualsToVisibilityConverter}, ConverterParameter=1}"/>
+            <ContentControl Content="{Binding Plans}"
+                             Visibility="{Binding SelectedTabIndex, Converter={StaticResource IntEqualsToVisibilityConverter}, ConverterParameter=2}"/>
+            <ContentControl Content="{Binding Settings}"
+                             Visibility="{Binding SelectedTabIndex, Converter={StaticResource IntEqualsToVisibilityConverter}, ConverterParameter=3}"/>
+        </Grid>
+
+        <!-- Нижняя навигация — 4 вкладки, как в Android NavigationBar (GodjiDestinations.kt). -->
+        <Border Grid.Row="1" Background="{DynamicResource ChipBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="0,1,0,0">
+            <UniformGrid Rows="1" Columns="4">
+                <RadioButton Style="{StaticResource TabButton}" Tag="🏠" Content="ГЛАВНАЯ"
+                             IsChecked="{Binding SelectedTabIndex, Converter={StaticResource IntEqualsConverter}, ConverterParameter=0}"/>
+                <RadioButton Style="{StaticResource TabButton}" Tag="🌐" Content="СЕРВЕРЫ"
+                             IsChecked="{Binding SelectedTabIndex, Converter={StaticResource IntEqualsConverter}, ConverterParameter=1}"/>
+                <RadioButton Style="{StaticResource TabButton}" Tag="💳" Content="ПОДПИСКА"
+                             IsChecked="{Binding SelectedTabIndex, Converter={StaticResource IntEqualsConverter}, ConverterParameter=2}"/>
+                <RadioButton Style="{StaticResource TabButton}" Tag="⚙️" Content="НАСТРОЙКИ"
+                             IsChecked="{Binding SelectedTabIndex, Converter={StaticResource IntEqualsConverter}, ConverterParameter=3}"/>
+            </UniformGrid>
+        </Border>
+    </Grid>
+</UserControl>

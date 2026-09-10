@@ -1,0 +1,43 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Палитра "Godji VPN v3 Daylight" — 1:1 с Android GodjiColors.applyLight() (Color.kt). -->
+    <SolidColorBrush x:Key="BgBrush" Color="#EFE9DA"/>
+    <SolidColorBrush x:Key="SurfaceBrush" Color="#FFFDF7"/>
+    <SolidColorBrush x:Key="SurfaceGlassBrush" Color="#FFFDF7"/>
+    <SolidColorBrush x:Key="InkBrush" Color="#12312C"/>
+    <SolidColorBrush x:Key="InkShadowBrush" Color="#0A1F1C"/>
+    <SolidColorBrush x:Key="TextPrimaryBrush" Color="#12312C"/>
+    <SolidColorBrush x:Key="TextSecondaryBrush" Color="#5F736D"/>
+    <SolidColorBrush x:Key="TextMutedBrush" Color="#5F736D"/>
+    <SolidColorBrush x:Key="TealBrush" Color="#00A79B"/>
+    <SolidColorBrush x:Key="TealDeepBrush" Color="#076A62"/>
+    <SolidColorBrush x:Key="TealTintBrush" Color="#E8F2EE"/>
+    <SolidColorBrush x:Key="TealTintBorderBrush" Color="#BFDCD5"/>
+    <SolidColorBrush x:Key="TerracottaBrush" Color="#D9714B"/>
+    <SolidColorBrush x:Key="TerracottaDeepBrush" Color="#8A4526"/>
+    <SolidColorBrush x:Key="TerracottaTintBrush" Color="#F2E0D5"/>
+    <SolidColorBrush x:Key="TerracottaTintBorderBrush" Color="#E4C9B8"/>
+    <SolidColorBrush x:Key="WarningBrush" Color="#C9911F"/>
+    <SolidColorBrush x:Key="DangerBrush" Color="#C4553C"/>
+    <SolidColorBrush x:Key="JamBgBrush" Color="#F7E2D8"/>
+    <SolidColorBrush x:Key="JamBorderBrush" Color="#E4B49B"/>
+    <SolidColorBrush x:Key="JamTextBrush" Color="#8A3A1D"/>
+    <SolidColorBrush x:Key="CardBorderBrush" Color="#E7DFCA"/>
+    <SolidColorBrush x:Key="CardBorderStrongBrush" Color="#E2D9C4"/>
+    <SolidColorBrush x:Key="ButtonBorderBrush" Color="#D8CFB8"/>
+    <SolidColorBrush x:Key="ChipBrush" Color="#EFE7D4"/>
+    <SolidColorBrush x:Key="TrackBgBrush" Color="#E0D5BA"/>
+    <SolidColorBrush x:Key="BorderTealBrush" Color="#2600A79B"/>
+    <SolidColorBrush x:Key="PurpleBrush" Color="#8A4526"/>
+
+    <!-- Совместимость со старыми именами ресурсов из MVP-каркаса (первый проход) —
+         переиспользуют новую палитру один в один, чтобы не переписывать все Views разом. -->
+    <SolidColorBrush x:Key="PanelBrush" Color="#FFFDF7"/>
+    <SolidColorBrush x:Key="PanelAltBrush" Color="#FFFDF7"/>
+    <SolidColorBrush x:Key="BorderBrush" Color="#E7DFCA"/>
+    <SolidColorBrush x:Key="AccentBrush" Color="#00A79B"/>
+    <SolidColorBrush x:Key="AccentDimBrush" Color="#076A62"/>
+    <SolidColorBrush x:Key="TextBrush" Color="#12312C"/>
+
+</ResourceDictionary>
