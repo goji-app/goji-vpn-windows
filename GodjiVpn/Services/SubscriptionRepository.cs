@@ -47,6 +47,17 @@ public sealed class SubscriptionRepository : INotifyPropertyChanged
         private set { _lastError = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(LastError))); }
     }
 
+    /// <summary>Новости/рассылки (см. ApiClient.GetBroadcastsAsync) — та же страница, что
+    /// "Мои рассылки" веб-версии. Не персистится на диск: список короткий, лишний раз сходить
+    /// в сеть при следующем запуске не накладно, а устаревшие новости в офлайн-кэше приносили
+    /// бы больше путаницы, чем пользы.</summary>
+    private IReadOnlyList<BroadcastDto> _broadcasts = Array.Empty<BroadcastDto>();
+    public IReadOnlyList<BroadcastDto> Broadcasts
+    {
+        get => _broadcasts;
+        private set { _broadcasts = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Broadcasts))); }
+    }
+
     public SubscriptionRepository(ApiClient api, SubscriptionService subscriptionService, CustomNodeStore customNodes)
     {
         _api = api;
@@ -70,6 +81,12 @@ public sealed class SubscriptionRepository : INotifyPropertyChanged
             LastError = "Не удалось получить подписку: " + ex.Message;
             return false;
         }
+
+        // Не завязано на наличие активной подписки — новости могут быть релевантны и до
+        // покупки тарифа. Отдельная от подписки/серверов ошибка не должна прерывать остальной
+        // RefreshAsync, поэтому просто отбрасывается.
+        try { Broadcasts = await _api.GetBroadcastsAsync(); }
+        catch { /* новости не критичны для основного функционала */ }
 
         var active = subsResponse.Subscriptions.FirstOrDefault(s => s.IsPrimary)
             ?? subsResponse.Subscriptions.FirstOrDefault();

@@ -70,6 +70,7 @@ public partial class App : Application
         var subscriptionRepository = new SubscriptionRepository(apiClient, subscriptionService, customNodeStore);
         _subscriptionRepository = subscriptionRepository;
         var subscriptionNotifier = new SubscriptionNotifier();
+        var broadcastNotifier = new BroadcastNotifier();
         var vpnEngine = new VpnEngine(); // конструктор сам регистрирует себя в VpnEngine.Current
 
         var loginViewModel = new LoginViewModel(apiClient, tokenStore);
@@ -88,10 +89,13 @@ public partial class App : Application
 
         Tray = new TrayIconService(vpnEngine, connectViewModel, window, ExitApplication);
         subscriptionNotifier.NotificationRequested += (title, text) => Tray.ShowBalloon(title, text);
+        broadcastNotifier.NotificationRequested += (title, text) => Tray.ShowBalloon(title, text);
         subscriptionRepository.PropertyChanged += (_, args) =>
         {
             if (args.PropertyName == nameof(SubscriptionRepository.Subscription) && subscriptionRepository.Subscription is { } sub)
                 subscriptionNotifier.Check(sub);
+            if (args.PropertyName == nameof(SubscriptionRepository.Broadcasts))
+                broadcastNotifier.Check(subscriptionRepository.Broadcasts);
         };
         window.Closing += (_, args) =>
         {

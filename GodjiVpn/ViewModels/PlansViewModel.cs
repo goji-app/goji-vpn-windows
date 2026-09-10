@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Windows;
+using System.Windows.Documents;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GodjiVpn.Models;
@@ -8,6 +9,17 @@ using GodjiVpn.Services;
 using GodjiVpn.Utils;
 
 namespace GodjiVpn.ViewModels;
+
+/// <summary>Одна новость/рассылка (см. SubscriptionRepository.Broadcasts) — Document уже
+/// готовый распарсенный FlowDocument (см. Utils/RichContent.cs), не строится заново при
+/// каждом обращении к свойству.</summary>
+public sealed class NewsItem
+{
+    public required string Id { get; init; }
+    public required FlowDocument Document { get; init; }
+    public required string DateLabel { get; init; }
+    public required List<BroadcastButtonDto> Buttons { get; init; }
+}
 
 public sealed partial class PeriodItem : ObservableObject
 {
@@ -47,6 +59,7 @@ public sealed partial class PlansViewModel : ObservableObject
 
     public ObservableCollection<PeriodItem> Periods { get; } = new();
     public ObservableCollection<PlanItem> Plans { get; } = new();
+    public ObservableCollection<NewsItem> News { get; } = new();
 
     public PlansViewModel(ApiClient api, SubscriptionRepository subscription)
     {
@@ -63,6 +76,19 @@ public sealed partial class PlansViewModel : ObservableObject
         DaysLeft = sub?.DaysLeft ?? 0;
         DeviceLimit = sub?.DeviceLimit ?? 0;
         CustomerId = _subscription.SelectedNode?.Uuid;
+
+        // Свежая по CreatedAt первая — порядок с бэкенда не гарантирован (см. BroadcastNotifier).
+        News.Clear();
+        foreach (var b in _subscription.Broadcasts.OrderByDescending(b => b.CreatedAt))
+        {
+            News.Add(new NewsItem
+            {
+                Id = b.Id,
+                Document = RichContent.Build(b.Content),
+                DateLabel = DateFormat.FormatDate(b.CreatedAt),
+                Buttons = b.Buttons ?? new List<BroadcastButtonDto>()
+            });
+        }
 
         try
         {
@@ -129,6 +155,9 @@ public sealed partial class PlansViewModel : ObservableObject
 
     [RelayCommand]
     private void OpenSupport() => OpenUrl(SupportUrl);
+
+    [RelayCommand]
+    private void OpenBroadcastButton(string url) => OpenUrl(url);
 
     [RelayCommand]
     private void CopyCustomerId()

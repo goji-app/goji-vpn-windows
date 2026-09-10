@@ -1,6 +1,24 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace GodjiVpn.Models;
+
+/// <summary>Живой ответ api/broadcasts/completed отдаёт "ID" числом, а не строкой (вопреки
+/// исходному предположению по аналогии с Android BroadcastDto.id: String, см. комментарий
+/// в BroadcastDto ниже) — читаем оба варианта, а не падаем на JsonException.</summary>
+public sealed class FlexibleStringConverter : JsonConverter<string>
+{
+    public override string Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) =>
+        reader.TokenType switch
+        {
+            JsonTokenType.String => reader.GetString() ?? "",
+            JsonTokenType.Number => reader.TryGetInt64(out var n) ? n.ToString() : reader.GetDouble().ToString(System.Globalization.CultureInfo.InvariantCulture),
+            JsonTokenType.Null => "",
+            _ => ""
+        };
+
+    public override void Write(Utf8JsonWriter writer, string value, JsonSerializerOptions options) => writer.WriteStringValue(value);
+}
 
 // Контракт подтверждён чтением реального кода Android-приложения
 // (xyz.gojihub.vpn.network.models.Models.kt в каноническом источнике) — сверено
@@ -174,6 +192,28 @@ public sealed class PriceInfo
 
     [JsonPropertyName("period_unit")]
     public string PeriodUnit { get; set; } = "";
+}
+
+// ── Новости/рассылки (gojihub.xyz/api/broadcasts/completed) — та же страница, что "Мои
+//    рассылки" веб-версии. PropertyNameCaseInsensitive (Web defaults в ApiClient) сам сводит
+//    "ID"/"Content"/"CreatedAt"/"Buttons" и их нижний регистр к этим же свойствам — в отличие
+//    от Android (Moshi, строгий регистр), там ради этого нужны два отдельных поля-дубля. ────
+
+public sealed class BroadcastDto
+{
+    // Реальный ответ отдаёт ID числом (не строкой, как в Android-эквиваленте) — см.
+    // FlexibleStringConverter выше, подтверждено живым JsonException при первом тесте.
+    [JsonConverter(typeof(FlexibleStringConverter))]
+    public string Id { get; set; } = "";
+    public string Content { get; set; } = "";
+    public string CreatedAt { get; set; } = "";
+    public List<BroadcastButtonDto>? Buttons { get; set; }
+}
+
+public sealed class BroadcastButtonDto
+{
+    public string Url { get; set; } = "";
+    public string Text { get; set; } = "";
 }
 
 /// <summary>

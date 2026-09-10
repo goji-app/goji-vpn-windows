@@ -78,6 +78,11 @@ public sealed class ApiClient
     public async Task<PlansResponse> GetPlansAsync(CancellationToken ct = default) =>
         await GetAsync<PlansResponse>("api/dashboard/plans", ct).ConfigureAwait(false);
 
+    /// <summary>Страница "Мои рассылки"/"Новости" веб-версии (#/my-broadcasts) — список уже
+    /// отправленных пользователю новостей/объявлений.</summary>
+    public async Task<List<BroadcastDto>> GetBroadcastsAsync(CancellationToken ct = default) =>
+        await GetAsync<List<BroadcastDto>>("api/broadcasts/completed", ct).ConfigureAwait(false);
+
     private async Task<TResponse> GetAsync<TResponse>(string path, CancellationToken ct)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, path);
