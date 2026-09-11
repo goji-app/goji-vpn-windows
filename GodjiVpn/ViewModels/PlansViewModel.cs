@@ -131,8 +131,22 @@ public sealed partial class PlansViewModel : ObservableObject
     [ObservableProperty] private int selectedMonths = 1;
     [ObservableProperty] private bool isNewsExpanded;
     [ObservableProperty] private int newsPageIndex;
-    [ObservableProperty] private ReferralUiModel? referral;
-    [ObservableProperty] private PartnerUiModel? partner;
+    // NullToVisibilityConverter (Converters.cs) сделан специально под строковые свойства
+    // (value as string) — для произвольного объекта вроде ReferralUiModel unsafe-каст всегда
+    // даёт null, а значит Visibility.Collapsed БЕЗУСЛОВНО, даже когда данные реально пришли
+    // с бэкенда (это и оказалось причиной "секции не отображаются", подтверждено: диагностика
+    // сети/JSON ничего не показала, потому что сеть тут ни при чём). Поэтому — свои bool-флаги
+    // + обычный BoolToVisibilityConverter, а не переиспользование NullToVisibilityConverter.
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasReferral))]
+    private ReferralUiModel? referral;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasPartner))]
+    private PartnerUiModel? partner;
+
+    public bool HasReferral => Referral != null;
+    public bool HasPartner => Partner != null;
 
     public ObservableCollection<PeriodItem> Periods { get; } = new();
     public ObservableCollection<PlanItem> Plans { get; } = new();

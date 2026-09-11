@@ -134,7 +134,7 @@
                 <!-- Реферальная программа (gojihub.xyz/api/dashboard/referrals) — если бэкенд
                      когда-нибудь выключит фичу или запрос не удался, Referral останется null,
                      и вся секция просто не показывается (тот же принцип, что и у новостей). -->
-                <StackPanel Visibility="{Binding Referral, Converter={StaticResource NullToVisibilityConverter}}" Margin="0,0,0,14">
+                <StackPanel Visibility="{Binding HasReferral, Converter={StaticResource BoolToVisibilityConverter}}" Margin="0,0,0,14">
                     <TextBlock Text="Реферальная программа" FontFamily="{StaticResource InstrumentSerifFamily}" FontSize="19" Margin="0,0,0,8"/>
                     <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource InkBrush}"
                             BorderThickness="1.5" CornerRadius="20" Padding="16">
@@ -230,7 +230,7 @@
                 <!-- Партнёрская программа (gojihub.xyz/api/partner/status) — только статус/сводка,
                      подача заявки и вывод средств делаются на сайте (та же логика, что и
                      "Продлить" для тарифов — не переизобретаем денежные формы нативно). -->
-                <StackPanel Visibility="{Binding Partner, Converter={StaticResource NullToVisibilityConverter}}" Margin="0,0,0,14">
+                <StackPanel Visibility="{Binding HasPartner, Converter={StaticResource BoolToVisibilityConverter}}" Margin="0,0,0,14">
                     <TextBlock Text="Партнёрская программа" FontFamily="{StaticResource InstrumentSerifFamily}" FontSize="19" Margin="0,0,0,8"/>
                     <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource InkBrush}"
                             BorderThickness="1.5" CornerRadius="20" Padding="16">
