@@ -2,9 +2,11 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Reflection;
 using System.Windows;
+using System.Windows.Documents;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GodjiVpn.Services;
+using GodjiVpn.Utils;
 
 namespace GodjiVpn.ViewModels;
 
@@ -34,6 +36,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     private readonly HwidProvider _hwid;
     private readonly PingSettings _pingSettings;
     private readonly ThemeService _theme;
+    private readonly UpdateService _updateService;
 
     private static string LogsDir => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GodjiVpn", "logs");
@@ -44,6 +47,17 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private string logContent = "";
     [ObservableProperty] private string pingTestUrl = "";
     [ObservableProperty] private bool isDarkTheme;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasAvailableUpdate))]
+    private UpdateInfo? availableUpdate;
+    [ObservableProperty] private FlowDocument updateChangelogDocument = new();
+    [ObservableProperty] private bool isCheckingUpdate;
+    [ObservableProperty] private bool isDownloadingUpdate;
+    [ObservableProperty] private double downloadProgress;
+    [ObservableProperty] private string? updateCheckMessage;
+
+    public bool HasAvailableUpdate => AvailableUpdate != null;
 
     public ObservableCollection<LogFileItem> LogFiles { get; } = new()
     {
@@ -65,13 +79,15 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     public event Action? RequestLogout;
 
-    public SettingsViewModel(TokenStore tokenStore, VpnEngine vpnEngine, HwidProvider hwid, PingSettings pingSettings, ThemeService theme)
+    public SettingsViewModel(TokenStore tokenStore, VpnEngine vpnEngine, HwidProvider hwid, PingSettings pingSettings,
+        ThemeService theme, UpdateService updateService)
     {
         _tokenStore = tokenStore;
         _vpnEngine = vpnEngine;
         _hwid = hwid;
         _pingSettings = pingSettings;
         _theme = theme;
+        _updateService = updateService;
         selectedLogFile = LogFiles[0];
         selectedLogFile.IsSelected = true;
         foreach (var m in PingMethods) m.IsSelected = m.Method == _pingSettings.Method;
@@ -145,5 +161,54 @@ public sealed partial class SettingsViewModel : ObservableObject
         if (_vpnEngine.IsRunning) await _vpnEngine.DisconnectAsync();
         _tokenStore.Clear();
         RequestLogout?.Invoke();
+    }
+
+    /// <summary>Вызывается из App.xaml.cs после фоновой проверки при старте — чтобы не делать
+    /// два одинаковых сетевых запроса подряд (фоновый + ручной при первом открытии Настроек),
+    /// просто подхватываем уже готовый результат, если он есть.</summary>
+    public void ApplyBackgroundUpdateCheck(UpdateInfo? update)
+    {
+        AvailableUpdate = update;
+        UpdateChangelogDocument = update != null ? RichContent.Build(update.Changelog) : new FlowDocument();
+    }
+
+    [RelayCommand]
+    private async Task CheckForUpdateAsync()
+    {
+        IsCheckingUpdate = true;
+        UpdateCheckMessage = null;
+        try
+        {
+            var update = await _updateService.CheckForUpdateAsync();
+            ApplyBackgroundUpdateCheck(update);
+            UpdateCheckMessage = update == null ? $"У вас последняя версия ({AppVersion})" : null;
+        }
+        catch
+        {
+            UpdateCheckMessage = "Не удалось проверить обновления — проверьте подключение к интернету";
+        }
+        finally
+        {
+            IsCheckingUpdate = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task DownloadAndInstallUpdateAsync()
+    {
+        if (AvailableUpdate is not { } update) return;
+        IsDownloadingUpdate = true;
+        DownloadProgress = 0;
+        try
+        {
+            var progress = new Progress<double>(p => DownloadProgress = p);
+            var installerPath = await _updateService.DownloadAsync(update, progress);
+            UpdateService.RunInstallerAndExit(installerPath);
+        }
+        catch
+        {
+            UpdateCheckMessage = "Не удалось скачать обновление — попробуйте ещё раз позже";
+            IsDownloadingUpdate = false;
+        }
     }
 }

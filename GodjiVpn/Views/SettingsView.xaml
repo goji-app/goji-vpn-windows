@@ -1,6 +1,7 @@
 <UserControl x:Class="GodjiVpn.Views.SettingsView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:utils="clr-namespace:GodjiVpn.Utils">
     <Grid Background="{DynamicResource BgBrush}">
         <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="18,18,18,10">
             <StackPanel>
@@ -44,6 +45,57 @@
                             <Button Grid.Column="1" Content="Копировать HWID" Style="{StaticResource LinkButton}" FontSize="11"
                                     Command="{Binding CopyHwidCommand}"/>
                         </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Обновления — проверка через GitHub Releases (api.github.com), скачивание и
+                     запуск установщика прямо из приложения (см. Services/UpdateService.cs). -->
+                <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource InkBrush}"
+                        BorderThickness="1.5" CornerRadius="20" Padding="16" Margin="0,0,0,14">
+                    <StackPanel>
+                        <Grid Margin="0,0,0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Обновления" FontFamily="{StaticResource ManropeSemiBoldFamily}" FontSize="14" VerticalAlignment="Center"/>
+                            <Button Grid.Column="1" Content="Проверить" Style="{StaticResource SecondaryButton}" Padding="10,6" FontSize="11"
+                                    Command="{Binding CheckForUpdateCommand}"
+                                    Visibility="{Binding IsCheckingUpdate, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
+                        </Grid>
+
+                        <TextBlock Text="Проверяем…" FontSize="11.5" Foreground="{DynamicResource TextMutedBrush}" Margin="0,6,0,0"
+                                   Visibility="{Binding IsCheckingUpdate, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                        <TextBlock Text="{Binding UpdateCheckMessage}" FontSize="11.5" Foreground="{DynamicResource TextMutedBrush}"
+                                   TextWrapping="Wrap" Margin="0,6,0,0"
+                                   Visibility="{Binding UpdateCheckMessage, Converter={StaticResource NullToVisibilityConverter}}"/>
+
+                        <StackPanel Visibility="{Binding HasAvailableUpdate, Converter={StaticResource BoolToVisibilityConverter}}">
+                            <Border Background="{DynamicResource TealTintBrush}" BorderBrush="{DynamicResource TealTintBorderBrush}"
+                                    BorderThickness="1" CornerRadius="14" Padding="12" Margin="0,8,0,0">
+                                <StackPanel>
+                                    <TextBlock FontFamily="{StaticResource ManropeExtraBoldFamily}" FontSize="12.5" Foreground="{DynamicResource TealDeepBrush}">
+                                        <Run Text="Доступна версия "/><Run Text="{Binding AvailableUpdate.VersionLabel, Mode=OneWay}"/>
+                                    </TextBlock>
+                                    <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource CardBorderBrush}"
+                                            BorderThickness="1" CornerRadius="10" Padding="10" Margin="0,8,0,0" MaxHeight="220">
+                                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                            <RichTextBox utils:RichTextBoxBehavior.AttachedDocument="{Binding UpdateChangelogDocument}"
+                                                         IsReadOnly="True" IsDocumentEnabled="True" BorderThickness="0" Background="Transparent"
+                                                         Padding="0" VerticalScrollBarVisibility="Disabled" HorizontalScrollBarVisibility="Disabled"/>
+                                        </ScrollViewer>
+                                    </Border>
+
+                                    <ProgressBar Height="6" Margin="0,10,0,0" Minimum="0" Maximum="1" Value="{Binding DownloadProgress}"
+                                                 Foreground="{DynamicResource TealBrush}" Background="{DynamicResource ChipBrush}" BorderThickness="0"
+                                                 Visibility="{Binding IsDownloadingUpdate, Converter={StaticResource BoolToVisibilityConverter}}"/>
+
+                                    <Button Content="Скачать и установить" Style="{StaticResource InkButton}" Margin="0,10,0,0"
+                                            HorizontalAlignment="Stretch" Command="{Binding DownloadAndInstallUpdateCommand}"
+                                            Visibility="{Binding IsDownloadingUpdate, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
                     </StackPanel>
                 </Border>
 

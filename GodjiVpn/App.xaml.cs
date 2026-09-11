@@ -16,6 +16,7 @@ public partial class App : Application
     private LoginViewModel? _loginViewModel;
     private SubscriptionRepository? _subscriptionRepository;
     private DispatcherTimer? _hourlyRefreshTimer;
+    private DispatcherTimer? _updateCheckTimer;
     public TrayIconService? Tray { get; private set; }
 
     protected override async void OnStartup(StartupEventArgs e)
@@ -71,6 +72,8 @@ public partial class App : Application
         _subscriptionRepository = subscriptionRepository;
         var subscriptionNotifier = new SubscriptionNotifier();
         var broadcastNotifier = new BroadcastNotifier();
+        var updateService = new UpdateService();
+        var updateNotifier = new UpdateNotifier();
         var vpnEngine = new VpnEngine(); // конструктор сам регистрирует себя в VpnEngine.Current
 
         var loginViewModel = new LoginViewModel(apiClient, tokenStore);
@@ -80,7 +83,7 @@ public partial class App : Application
         var pingService = new PingService(pingSettings);
         var serversViewModel = new ServersViewModel(subscriptionRepository, pingService, customNodeStore);
         var plansViewModel = new PlansViewModel(apiClient, subscriptionRepository);
-        var settingsViewModel = new SettingsViewModel(tokenStore, vpnEngine, hwidProvider, pingSettings, themeService);
+        var settingsViewModel = new SettingsViewModel(tokenStore, vpnEngine, hwidProvider, pingSettings, themeService, updateService);
         var shellViewModel = new ShellViewModel(connectViewModel, serversViewModel, plansViewModel, settingsViewModel);
         var mainViewModel = new MainViewModel(tokenStore, loginViewModel, shellViewModel);
 
@@ -90,6 +93,7 @@ public partial class App : Application
         Tray = new TrayIconService(vpnEngine, connectViewModel, window, ExitApplication);
         subscriptionNotifier.NotificationRequested += (title, text) => Tray.ShowBalloon(title, text);
         broadcastNotifier.NotificationRequested += (title, text) => Tray.ShowBalloon(title, text);
+        updateNotifier.NotificationRequested += (title, text) => Tray.ShowBalloon(title, text);
         subscriptionRepository.PropertyChanged += (_, args) =>
         {
             if (args.PropertyName == nameof(SubscriptionRepository.Subscription) && subscriptionRepository.Subscription is { } sub)
@@ -118,6 +122,20 @@ public partial class App : Application
         _hourlyRefreshTimer = new DispatcherTimer { Interval = TimeSpan.FromHours(1) };
         _hourlyRefreshTimer.Tick += async (_, _) => await subscriptionRepository.RefreshAsync();
         _hourlyRefreshTimer.Start();
+
+        // Раз в 6 часов достаточно — GitHub Releases не меняются ежеминутно, а сама проверка
+        // (одна GET-заявка на api.github.com) дешёвая. Уведомление в трее — не чаще одного
+        // раза на версию (см. UpdateNotifier), незамеченное не превращается в спам.
+        async Task CheckForUpdatesAsync()
+        {
+            var update = await updateService.CheckForUpdateAsync();
+            settingsViewModel.ApplyBackgroundUpdateCheck(update);
+            if (update != null) updateNotifier.Check(update);
+        }
+        _ = CheckForUpdatesAsync();
+        _updateCheckTimer = new DispatcherTimer { Interval = TimeSpan.FromHours(6) };
+        _updateCheckTimer.Tick += async (_, _) => await CheckForUpdatesAsync();
+        _updateCheckTimer.Start();
 
         await mainViewModel.InitializeAsync();
     }
@@ -170,6 +188,7 @@ public partial class App : Application
     private async void ExitApplication()
     {
         _hourlyRefreshTimer?.Stop();
+        _updateCheckTimer?.Stop();
         try { await (VpnEngine.Current?.DisconnectAsync() ?? Task.CompletedTask); }
         catch { /* уходим в любом случае — не даём сбою разрыва тоннеля помешать закрытию */ }
         Tray?.Dispose();

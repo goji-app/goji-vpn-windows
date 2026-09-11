@@ -135,21 +135,6 @@ public sealed class ApiClient
         return JsonSerializer.Deserialize<TResponse>(body, JsonOptions)
             ?? throw new InvalidOperationException("Пустой ответ сервера");
     }
-
-    /// <summary>Прокси по 127.0.0.1:SocksPort, пока VpnEngine.Current.IsRunning — решение
-    /// принимается заново на каждый запрос (а не фиксируется при создании HttpClient),
-    /// поэтому первый вызов до подключения и все последующие после — ведут себя корректно.</summary>
-    private sealed class TunnelAwareProxy : IWebProxy
-    {
-        public ICredentials? Credentials { get; set; }
-
-        public Uri? GetProxy(Uri destination) =>
-            VpnEngine.Current?.IsRunning == true
-                ? new Uri($"socks5://127.0.0.1:{VpnEngine.SocksPort}")
-                : null;
-
-        public bool IsBypassed(Uri host) => VpnEngine.Current?.IsRunning != true;
-    }
 }
 
 public sealed class ApiException(HttpStatusCode statusCode, string body)

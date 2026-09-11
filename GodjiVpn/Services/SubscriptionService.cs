@@ -22,7 +22,7 @@ public sealed class SubscriptionService
         _hwid = hwid;
         var handler = new SocketsHttpHandler
         {
-            Proxy = new TunnelAwareProxyForSubscription(),
+            Proxy = new TunnelAwareProxy(),
             UseProxy = true
         };
         _http = new HttpClient(handler);
@@ -137,12 +137,4 @@ public sealed class SubscriptionService
     }
 
     private static string Truncate(string s) => s.Length > 200 ? s[..200] + "…" : s;
-
-    private sealed class TunnelAwareProxyForSubscription : IWebProxy
-    {
-        public ICredentials? Credentials { get; set; }
-        public Uri? GetProxy(Uri destination) =>
-            VpnEngine.Current?.IsRunning == true ? new Uri($"socks5://127.0.0.1:{VpnEngine.SocksPort}") : null;
-        public bool IsBypassed(Uri host) => VpnEngine.Current?.IsRunning != true;
-    }
 }
