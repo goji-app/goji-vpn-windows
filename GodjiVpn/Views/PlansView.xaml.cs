@@ -15,4 +15,9 @@ public partial class PlansView : UserControl
     {
         if (DataContext is PlansViewModel vm) vm.OpenSupportCommand.Execute(null);
     }
+
+    private void OnReferralLinkClick(object sender, MouseButtonEventArgs e)
+    {
+        if (DataContext is PlansViewModel vm) vm.CopyReferralLinkCommand.Execute(null);
+    }
 }

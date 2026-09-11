@@ -216,6 +216,73 @@ public sealed class BroadcastButtonDto
     public string Text { get; set; } = "";
 }
 
+// ── Рефералы (gojihub.xyz/api/dashboard/referrals) — формат сверен так же, как и broadcasts,
+//    анализом JS-бандла веб-версии (ReferralsPage), без входа в чей-либо аккаунт. ─────────────
+
+public sealed class ReferralsResponse
+{
+    public string Link { get; set; } = "";
+    [JsonPropertyName("web_link")] public string? WebLink { get; set; }
+    public string? Description { get; set; }
+    public ReferralSummary Summary { get; set; } = new();
+    public List<ReferralEntry> Referrals { get; set; } = new();
+}
+
+public sealed class ReferralSummary
+{
+    [JsonPropertyName("total_referrals")] public int TotalReferrals { get; set; }
+    [JsonPropertyName("active_referrals")] public int ActiveReferrals { get; set; }
+    [JsonPropertyName("total_bonus_days")] public int TotalBonusDays { get; set; }
+}
+
+public sealed class ReferralEntry
+{
+    public long Id { get; set; }
+    [JsonPropertyName("tg_username")] public string? TgUsername { get; set; }
+    [JsonPropertyName("tg_first_name")] public string? TgFirstName { get; set; }
+    [JsonPropertyName("tg_last_name")] public string? TgLastName { get; set; }
+    public string? Email { get; set; }
+    [JsonPropertyName("referee_telegram_id")] public long? RefereeTelegramId { get; set; }
+    [JsonPropertyName("referee_id")] public long? RefereeId { get; set; }
+    [JsonPropertyName("is_active")] public bool IsActive { get; set; }
+    [JsonPropertyName("used_at")] public string? UsedAt { get; set; }
+    [JsonPropertyName("bonus_days")] public int BonusDays { get; set; }
+}
+
+// ── Партнёрская программа (gojihub.xyz/api/partner/status) — только то подмножество полей,
+//    которое реально показываем (сводка/статус); форму заявки и вывода средств на клиенте не
+//    переопределяем, открываем веб-версию (см. PlansViewModel/PlansView), как и "Продлить" для
+//    тарифов — не переизобретаем денежные формы нативно. ─────────────────────────────────────
+
+public sealed class PartnerStatusResponse
+{
+    [JsonPropertyName("is_partner")] public bool IsPartner { get; set; }
+    public string? Description { get; set; }
+    public PartnerApplication? Application { get; set; }
+    public PartnerInfo? Partner { get; set; }
+    public PartnerStats? Stats { get; set; }
+    [JsonPropertyName("approval_message")] public string? ApprovalMessage { get; set; }
+}
+
+public sealed class PartnerApplication
+{
+    public string Status { get; set; } = "";
+}
+
+public sealed class PartnerInfo
+{
+    [JsonPropertyName("is_active")] public bool IsActive { get; set; }
+    [JsonPropertyName("commission_rate")] public double CommissionRate { get; set; }
+    [JsonPropertyName("available_balance")] public double AvailableBalance { get; set; }
+    [JsonPropertyName("pending_balance")] public double? PendingBalance { get; set; }
+    [JsonPropertyName("total_earned")] public double TotalEarned { get; set; }
+}
+
+public sealed class PartnerStats
+{
+    [JsonPropertyName("client_count")] public int ClientCount { get; set; }
+}
+
 /// <summary>
 /// Один сервер из подписки пользователя. ConnectPayloadJson — это уже готовый Xray-конфиг
 /// (dns/routing/outbounds, без inbounds), полученный с subs.gojihub.xyz при переданном X-HWID.

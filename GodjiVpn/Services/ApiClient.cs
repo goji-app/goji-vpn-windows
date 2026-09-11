@@ -83,6 +83,15 @@ public sealed class ApiClient
     public async Task<List<BroadcastDto>> GetBroadcastsAsync(CancellationToken ct = default) =>
         await GetAsync<List<BroadcastDto>>("api/broadcasts/completed", ct).ConfigureAwait(false);
 
+    /// <summary>Страница "Рефералы" веб-версии (#/my-referrals).</summary>
+    public async Task<ReferralsResponse> GetReferralsAsync(CancellationToken ct = default) =>
+        await GetAsync<ReferralsResponse>("api/dashboard/referrals", ct).ConfigureAwait(false);
+
+    /// <summary>Страница "Партнёрская программа" веб-версии (#/partner-dashboard) — только
+    /// сводка/статус, см. PartnerStatusResponse.</summary>
+    public async Task<PartnerStatusResponse> GetPartnerStatusAsync(CancellationToken ct = default) =>
+        await GetAsync<PartnerStatusResponse>("api/partner/status", ct).ConfigureAwait(false);
+
     private async Task<TResponse> GetAsync<TResponse>(string path, CancellationToken ct)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, path);
