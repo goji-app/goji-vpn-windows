@@ -10,15 +10,29 @@ using GodjiVpn.Utils;
 
 namespace GodjiVpn.ViewModels;
 
-/// <summary>Одна новость/рассылка (см. SubscriptionRepository.Broadcasts) — Document уже
-/// готовый распарсенный FlowDocument (см. Utils/RichContent.cs), не строится заново при
-/// каждом обращении к свойству.</summary>
-public sealed class NewsItem
+/// <summary>Одна новость/рассылка (см. SubscriptionRepository.Broadcasts). Document
+/// перестраивается один раз при клике "Читать полностью" (см. RichContent.Build —
+/// collapsedBlocks сворачивает контент до 6 верхнеуровневых блоков, как на самом сайте).</summary>
+public sealed partial class NewsItem : ObservableObject
 {
+    private const int CollapsedBlockCount = 6;
+    private bool _expanded;
+
     public required string Id { get; init; }
-    public required FlowDocument Document { get; init; }
+    public required string RawContent { get; init; }
     public required string DateLabel { get; init; }
     public required List<BroadcastButtonDto> Buttons { get; init; }
+
+    [ObservableProperty] private FlowDocument document = new();
+
+    public void BuildCollapsed() => Document = RichContent.Build(RawContent, CollapsedBlockCount, Expand);
+
+    private void Expand()
+    {
+        if (_expanded) return;
+        _expanded = true;
+        Document = RichContent.Build(RawContent);
+    }
 }
 
 public sealed partial class PeriodItem : ObservableObject
@@ -44,10 +58,16 @@ public sealed partial class PlansViewModel : ObservableObject
     private const string RenewUrl = "https://gojihub.xyz/#/plans";
     private const string SupportUrl = "https://gojihub.xyz/#/support-chat";
 
+    // Свёрнутый вид (по умолчанию) — только 2 последние новости, без пагинации. Развёрнутый
+    // (по клику "Показать все") — постранично, максимум 3 на странице.
+    private const int CollapsedNewsCount = 2;
+    private const int NewsPageSize = 3;
+
     private readonly ApiClient _api;
     private readonly SubscriptionRepository _subscription;
 
     private List<PlanInfo> _rawPlans = new();
+    private List<NewsItem> _allNews = new();
 
     [ObservableProperty] private string planName = "—";
     [ObservableProperty] private string expiryLabel = "—";
@@ -56,10 +76,21 @@ public sealed partial class PlansViewModel : ObservableObject
     [ObservableProperty] private string? customerId;
     [ObservableProperty] private bool refreshing;
     [ObservableProperty] private int selectedMonths = 1;
+    [ObservableProperty] private bool isNewsExpanded;
+    [ObservableProperty] private int newsPageIndex;
 
     public ObservableCollection<PeriodItem> Periods { get; } = new();
     public ObservableCollection<PlanItem> Plans { get; } = new();
-    public ObservableCollection<NewsItem> News { get; } = new();
+
+    /// <summary>То, что реально показывает XAML — свёрнутый список (2 последние) или текущая
+    /// страница (3 на страницу), в зависимости от IsNewsExpanded. См. RefreshVisibleNews.</summary>
+    public ObservableCollection<NewsItem> VisibleNews { get; } = new();
+
+    public int NewsTotalPages => _allNews.Count == 0 ? 1 : (int)Math.Ceiling(_allNews.Count / (double)NewsPageSize);
+    public bool NewsHasMultiplePages => IsNewsExpanded && NewsTotalPages > 1;
+    public bool HasHiddenNews => _allNews.Count > CollapsedNewsCount;
+    public string NewsToggleLabel => IsNewsExpanded ? "Свернуть" : "Показать все новости";
+    public string NewsPageLabel => $"Страница {NewsPageIndex + 1} из {NewsTotalPages}";
 
     public PlansViewModel(ApiClient api, SubscriptionRepository subscription)
     {
@@ -78,17 +109,21 @@ public sealed partial class PlansViewModel : ObservableObject
         CustomerId = _subscription.SelectedNode?.Uuid;
 
         // Свежая по CreatedAt первая — порядок с бэкенда не гарантирован (см. BroadcastNotifier).
-        News.Clear();
-        foreach (var b in _subscription.Broadcasts.OrderByDescending(b => b.CreatedAt))
+        _allNews = _subscription.Broadcasts.OrderByDescending(b => b.CreatedAt).Select(b =>
         {
-            News.Add(new NewsItem
+            var item = new NewsItem
             {
                 Id = b.Id,
-                Document = RichContent.Build(b.Content),
+                RawContent = b.Content,
                 DateLabel = DateFormat.FormatDate(b.CreatedAt),
                 Buttons = b.Buttons ?? new List<BroadcastButtonDto>()
-            });
-        }
+            };
+            item.BuildCollapsed();
+            return item;
+        }).ToList();
+        IsNewsExpanded = false;
+        NewsPageIndex = 0;
+        RefreshVisibleNews();
 
         try
         {
@@ -158,6 +193,41 @@ public sealed partial class PlansViewModel : ObservableObject
 
     [RelayCommand]
     private void OpenBroadcastButton(string url) => OpenUrl(url);
+
+    [RelayCommand]
+    private void ToggleNewsExpanded()
+    {
+        IsNewsExpanded = !IsNewsExpanded;
+        NewsPageIndex = 0;
+        RefreshVisibleNews();
+    }
+
+    [RelayCommand(CanExecute = nameof(CanGoNewsPrevPage))]
+    private void NewsPrevPage() { NewsPageIndex--; RefreshVisibleNews(); }
+    private bool CanGoNewsPrevPage() => NewsPageIndex > 0;
+
+    [RelayCommand(CanExecute = nameof(CanGoNewsNextPage))]
+    private void NewsNextPage() { NewsPageIndex++; RefreshVisibleNews(); }
+    private bool CanGoNewsNextPage() => NewsPageIndex < NewsTotalPages - 1;
+
+    /// <summary>Свёрнутый вид — 2 последние новости целиком, без пагинации (см.
+    /// CollapsedNewsCount). Развёрнутый — постранично по NewsPageSize (см. IsNewsExpanded).</summary>
+    private void RefreshVisibleNews()
+    {
+        VisibleNews.Clear();
+        var page = IsNewsExpanded
+            ? _allNews.Skip(NewsPageIndex * NewsPageSize).Take(NewsPageSize)
+            : _allNews.Take(CollapsedNewsCount);
+        foreach (var item in page) VisibleNews.Add(item);
+
+        OnPropertyChanged(nameof(NewsTotalPages));
+        OnPropertyChanged(nameof(NewsHasMultiplePages));
+        OnPropertyChanged(nameof(HasHiddenNews));
+        OnPropertyChanged(nameof(NewsToggleLabel));
+        OnPropertyChanged(nameof(NewsPageLabel));
+        NewsPrevPageCommand.NotifyCanExecuteChanged();
+        NewsNextPageCommand.NotifyCanExecuteChanged();
+    }
 
     [RelayCommand]
     private void CopyCustomerId()
