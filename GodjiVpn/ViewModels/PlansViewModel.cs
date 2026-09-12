@@ -7,6 +7,7 @@ using CommunityToolkit.Mvvm.Input;
 using GodjiVpn.Models;
 using GodjiVpn.Services;
 using GodjiVpn.Utils;
+using GodjiVpn.Views;
 
 namespace GodjiVpn.ViewModels;
 
@@ -88,6 +89,19 @@ public sealed class PartnerUiModel
     public string PendingBalanceLabel => $"{(int)PendingBalance} ₽";
 }
 
+/// <summary>Одно устройство подписки (см. DeviceDto) — busy гасит кнопки переименования/
+/// удаления на время запроса, как busy в Android DeviceUi.</summary>
+public sealed partial class DeviceItem : ObservableObject
+{
+    public required string Hwid { get; init; }
+    [ObservableProperty] private string name = "";
+    public string? Platform { get; init; }
+    public string? CreatedAtLabel { get; init; }
+    [ObservableProperty] private bool isBusy;
+
+    public string Subtitle => string.Join(" · ", new[] { Platform, CreatedAtLabel }.Where(s => !string.IsNullOrEmpty(s)));
+}
+
 public sealed partial class PeriodItem : ObservableObject
 {
     public required int Months { get; init; }
@@ -148,8 +162,16 @@ public sealed partial class PlansViewModel : ObservableObject
     public bool HasReferral => Referral != null;
     public bool HasPartner => Partner != null;
 
+    private long? _subscriptionId;
+
+    // На пробном/бесплатном тарифе — как на сайте, самостоятельное удаление устройства скрыто
+    // за "обратитесь в поддержку" (см. комментарий у DeviceDto в ApiModels.cs).
+    [ObservableProperty] private bool devicesDeleteSupportOnly;
+    public bool HasDevices => _subscriptionId != null;
+
     public ObservableCollection<PeriodItem> Periods { get; } = new();
     public ObservableCollection<PlanItem> Plans { get; } = new();
+    public ObservableCollection<DeviceItem> Devices { get; } = new();
 
     /// <summary>То, что реально показывает XAML — свёрнутый список (2 последние) или текущая
     /// страница (3 на страницу), в зависимости от IsNewsExpanded. См. RefreshVisibleNews.</summary>
@@ -176,6 +198,20 @@ public sealed partial class PlansViewModel : ObservableObject
         DaysLeft = sub?.DaysLeft ?? 0;
         DeviceLimit = sub?.DeviceLimit ?? 0;
         CustomerId = _subscription.SelectedNode?.Uuid;
+
+        _subscriptionId = sub?.Id;
+        DevicesDeleteSupportOnly = sub?.Kind == "trial" || sub?.Kind == "free";
+        OnPropertyChanged(nameof(HasDevices));
+        Devices.Clear();
+        if (_subscriptionId is { } subId)
+        {
+            try
+            {
+                var devices = await _api.GetDevicesAsync(subId);
+                foreach (var d in devices) Devices.Add(ToDeviceItem(d));
+            }
+            catch { /* устройства — вспомогательная секция, не критична для остального экрана */ }
+        }
 
         // Свежая по CreatedAt первая — порядок с бэкенда не гарантирован (см. BroadcastNotifier).
         _allNews = _subscription.Broadcasts.OrderByDescending(b => b.CreatedAt).Select(b =>
@@ -255,6 +291,81 @@ public sealed partial class PlansViewModel : ObservableObject
             };
         }
         catch { Partner = null; }
+    }
+
+    private static DeviceItem ToDeviceItem(DeviceDto d) => new()
+    {
+        Hwid = d.Hwid,
+        Name = !string.IsNullOrWhiteSpace(d.ReadableName) ? d.ReadableName
+             : !string.IsNullOrWhiteSpace(d.Platform) ? d.Platform
+             : d.Hwid[..Math.Min(8, d.Hwid.Length)],
+        Platform = d.Platform,
+        CreatedAtLabel = d.CreatedAt is { } ca ? DateFormat.FormatDate(ca) : null
+    };
+
+    [RelayCommand]
+    private async Task RenameDeviceAsync(DeviceItem device)
+    {
+        if (_subscriptionId is not { } subId) return;
+        var dialog = new PromptDialog
+        {
+            Owner = Application.Current.MainWindow,
+            PromptTitle = "Переименовать устройство",
+            InputLabel = "Название",
+            InputValue = device.Name,
+            PrimaryText = "Сохранить"
+        };
+        if (dialog.ShowDialog() != true) return;
+        var newName = dialog.InputValue.Trim();
+        if (newName.Length == 0 || newName == device.Name) return;
+
+        device.IsBusy = true;
+        try
+        {
+            await _api.RenameDeviceAsync(subId, device.Hwid, newName);
+            device.Name = newName;
+        }
+        catch { /* переименование — необязательное действие, молча оставляем прежнее имя */ }
+        finally { device.IsBusy = false; }
+    }
+
+    [RelayCommand]
+    private async Task DeleteDeviceAsync(DeviceItem device)
+    {
+        if (_subscriptionId is not { } subId) return;
+
+        if (DevicesDeleteSupportOnly)
+        {
+            var supportDialog = new PromptDialog
+            {
+                Owner = Application.Current.MainWindow,
+                PromptTitle = "Удаление устройства",
+                Message = "На пробном и бесплатном тарифах удалить устройство можно только через поддержку. Обратитесь к нам — мы поможем.",
+                ShowInput = false,
+                PrimaryText = "Написать в поддержку"
+            };
+            if (supportDialog.ShowDialog() == true) OpenUrl(SupportUrl);
+            return;
+        }
+
+        var confirmDialog = new PromptDialog
+        {
+            Owner = Application.Current.MainWindow,
+            PromptTitle = "Удаление устройства",
+            Message = "Вы уверены, что хотите удалить это устройство? Это действие нельзя отменить.",
+            ShowInput = false,
+            PrimaryText = "Удалить",
+            IsPrimaryDanger = true
+        };
+        if (confirmDialog.ShowDialog() != true) return;
+
+        device.IsBusy = true;
+        try
+        {
+            await _api.DeleteDeviceAsync(subId, device.Hwid);
+            Devices.Remove(device);
+        }
+        catch { device.IsBusy = false; }
     }
 
     /// <summary>Веб-версия маскирует половину имени/юзернейма/локальной части email точками —

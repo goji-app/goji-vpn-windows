@@ -1,0 +1,26 @@
+<Window x:Class="GodjiVpn.Views.PromptDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Godji VPN" Width="360" SizeToContent="Height"
+        MinWidth="320" ResizeMode="NoResize"
+        Background="{DynamicResource BgBrush}"
+        WindowStartupLocation="CenterOwner"
+        UseLayoutRounding="True"
+        TextOptions.TextFormattingMode="Display">
+    <!-- Общий модальный диалог "название + опциональный текст/поле ввода + две кнопки" —
+         переиспользуется для переименования устройства (ShowInput=true) и для подтверждений
+         удаления/поддержки на экране "Твоя подписка" (ShowInput=false), портировано с Android
+         AlertDialog в PlansScreen.kt (DevicesSection). Единственный такой диалог в приложении —
+         заводить под каждый случай отдельное окно избыточно. -->
+    <StackPanel Margin="20">
+        <TextBlock x:Name="TitleBlock" Style="{StaticResource Headline}" FontSize="17" Margin="0,0,0,10" TextWrapping="Wrap"/>
+        <TextBlock x:Name="MessageBlock" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,0,0,12"/>
+        <TextBlock x:Name="InputLabelBlock" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,5"/>
+        <TextBox x:Name="InputBox" Margin="0,0,0,4"/>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
+            <Button x:Name="SecondaryBtn" Content="Отмена" Style="{StaticResource SecondaryButton}"
+                    Padding="14,8" Margin="0,0,8,0" Click="OnSecondaryClick"/>
+            <Button x:Name="PrimaryBtn" Style="{StaticResource InkButton}" Padding="14,8" Click="OnPrimaryClick"/>
+        </StackPanel>
+    </StackPanel>
+</Window>

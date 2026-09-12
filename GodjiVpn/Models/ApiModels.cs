@@ -258,6 +258,35 @@ public sealed class PartnerStats
     [JsonPropertyName("client_count")] public int ClientCount { get; set; }
 }
 
+// ── Устройства подписки (gojihub.xyz/api/subscriptions/{id}/devices) — формат сверен так же,
+//    как и остальные веб-only разделы, анализом JS-бандла веб-версии (ClientDashboard).
+//    Удаление на пробном/бесплатном тарифе веб-версия сознательно не даёт делать самостоятельно
+//    ("удалить устройство можно только через поддержку") — чисто клиентская проверка на сайте
+//    (см. PlansViewModel.DevicesDeleteSupportOnly), сам DELETE-эндпоинт её не требует, но мы её
+//    повторяем, чтобы не давать в приложении то, что сайт намеренно прячет для этих тарифов. ──
+
+public sealed class DeviceDto
+{
+    public string Hwid { get; set; } = "";
+
+    [JsonPropertyName("readable_name")]
+    public string? ReadableName { get; set; }
+
+    public string? Platform { get; set; }
+
+    [JsonPropertyName("user_agent")]
+    public string? UserAgent { get; set; }
+
+    [JsonPropertyName("created_at")]
+    public string? CreatedAt { get; set; }
+}
+
+public sealed class RenameDeviceRequest
+{
+    [JsonPropertyName("readable_name")]
+    public string ReadableName { get; set; } = "";
+}
+
 /// <summary>
 /// Один сервер из подписки пользователя. ConnectPayloadJson — это уже готовый Xray-конфиг
 /// (dns/routing/outbounds, без inbounds), полученный с subs.gojihub.xyz при переданном X-HWID.

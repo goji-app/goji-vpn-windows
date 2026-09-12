@@ -105,6 +105,28 @@ public sealed class ApiClient
     public async Task<PartnerStatusResponse> GetPartnerStatusAsync(CancellationToken ct = default) =>
         await GetAsync<PartnerStatusResponse>("api/partner/status", ct).ConfigureAwait(false);
 
+    public async Task<List<DeviceDto>> GetDevicesAsync(long subscriptionId, CancellationToken ct = default) =>
+        await GetAsync<List<DeviceDto>>($"api/subscriptions/{subscriptionId}/devices", ct).ConfigureAwait(false);
+
+    public async Task RenameDeviceAsync(long subscriptionId, string hwid, string readableName, CancellationToken ct = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Patch, $"api/subscriptions/{subscriptionId}/devices/{hwid}")
+        {
+            Content = JsonContent.Create(new RenameDeviceRequest { ReadableName = readableName }, options: JsonOptions)
+        };
+        PrepareRequest(request);
+        using var response = await _http.SendAsync(request, ct).ConfigureAwait(false);
+        await ReadOrThrowAsync<object?>(response, ct).ConfigureAwait(false);
+    }
+
+    public async Task DeleteDeviceAsync(long subscriptionId, string hwid, CancellationToken ct = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Delete, $"api/subscriptions/{subscriptionId}/devices/{hwid}");
+        PrepareRequest(request);
+        using var response = await _http.SendAsync(request, ct).ConfigureAwait(false);
+        await ReadOrThrowAsync<object?>(response, ct).ConfigureAwait(false);
+    }
+
     private async Task<TResponse> GetAsync<TResponse>(string path, CancellationToken ct)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, path);

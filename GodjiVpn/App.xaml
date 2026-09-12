@@ -27,6 +27,7 @@
             <conv:NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
             <conv:InverseNullToVisibilityConverter x:Key="InverseNullToVisibilityConverter"/>
             <conv:ZeroToVisibilityConverter x:Key="ZeroToVisibilityConverter"/>
+            <conv:InverseZeroToVisibilityConverter x:Key="InverseZeroToVisibilityConverter"/>
             <conv:IntEqualsConverter x:Key="IntEqualsConverter"/>
             <conv:IntEqualsToVisibilityConverter x:Key="IntEqualsToVisibilityConverter"/>
 

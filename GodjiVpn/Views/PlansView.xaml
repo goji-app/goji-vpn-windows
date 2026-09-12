@@ -131,6 +131,54 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
 
+                <!-- Устройства подписки (gojihub.xyz/api/subscriptions/{id}/devices) — список,
+                     переименование и удаление (см. PlansViewModel.Devices/RenameDeviceCommand/
+                     DeleteDeviceCommand), порт DevicesSection из Android PlansScreen.kt. -->
+                <StackPanel Visibility="{Binding HasDevices, Converter={StaticResource BoolToVisibilityConverter}}" Margin="0,0,0,14">
+                    <TextBlock Text="Устройства" FontFamily="{StaticResource InstrumentSerifFamily}" FontSize="19" Margin="0,0,0,8"/>
+                    <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource InkBrush}"
+                            BorderThickness="1.5" CornerRadius="20" Padding="16">
+                        <StackPanel>
+                            <TextBlock Text="Нет подключённых устройств" FontFamily="{StaticResource ManropeMediumFamily}" FontSize="11"
+                                       Foreground="{DynamicResource TextMutedBrush}"
+                                       Visibility="{Binding Devices.Count, Converter={StaticResource InverseZeroToVisibilityConverter}}"/>
+                            <ItemsControl ItemsSource="{Binding Devices}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="0,0,0,10">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Name}" FontFamily="{StaticResource ManropeSemiBoldFamily}" FontSize="12.5"
+                                                           TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Text="{Binding Subtitle}" FontFamily="{StaticResource ManropeMediumFamily}" FontSize="10"
+                                                           Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,0"
+                                                           Visibility="{Binding Subtitle, Converter={StaticResource NullToVisibilityConverter}}"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <ProgressBar Width="16" Height="16" IsIndeterminate="True"
+                                                             Foreground="{DynamicResource TealDeepBrush}"
+                                                             Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                                <StackPanel Orientation="Horizontal" Visibility="{Binding IsBusy, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+                                                    <Button Content="✎" Style="{StaticResource LinkButton}" FontSize="14" Padding="8,4" Margin="0,0,4,0"
+                                                            Command="{Binding DataContext.RenameDeviceCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                            CommandParameter="{Binding}"/>
+                                                    <Button Content="✕" Style="{StaticResource LinkButton}" FontSize="14" Padding="8,4"
+                                                            Foreground="{DynamicResource DangerBrush}"
+                                                            Command="{Binding DataContext.DeleteDeviceCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                            CommandParameter="{Binding}"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
                 <!-- Реферальная программа (gojihub.xyz/api/dashboard/referrals) — если бэкенд
                      когда-нибудь выключит фичу или запрос не удался, Referral останется null,
                      и вся секция просто не показывается (тот же принцип, что и у новостей). -->
