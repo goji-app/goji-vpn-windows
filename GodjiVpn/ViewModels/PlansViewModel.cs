@@ -109,13 +109,37 @@ public sealed partial class PeriodItem : ObservableObject
     [ObservableProperty] private bool isSelected;
 }
 
+/// <summary>Длинные описания тарифов раньше разворачивали карточку на пол-экрана — сжимаем до
+/// приблизительно 2 строк и прячем остальное за "читать полностью" (порт из Android
+/// PlansScreen.kt: там — реальный hasVisualOverflow с TextLayout, здесь — эквивалент по длине
+/// строки, WPF не даёt такой колбэк без отдельного измерения текста, а на глаз для карточек
+/// тарифов с их фиксированной шириной это даёт тот же результат).</summary>
 public sealed partial class PlanItem : ObservableObject
 {
+    private const int CollapsedCharLimit = 90;
+
     public required long Id { get; init; }
     public required string Name { get; init; }
-    public required string Description { get; init; }
+    public required string FullDescription { get; init; }
     public required string PriceLabel { get; init; }
     public required bool IsCurrent { get; init; }
+
+    [ObservableProperty] private bool isExpanded;
+
+    public bool ShowDescriptionToggle => FullDescription.Length > CollapsedCharLimit;
+    public string Description => IsExpanded || !ShowDescriptionToggle
+        ? FullDescription
+        : FullDescription[..CollapsedCharLimit].TrimEnd() + "…";
+    public string ToggleLabel => IsExpanded ? "Свернуть" : "Читать полностью";
+
+    partial void OnIsExpandedChanged(bool value)
+    {
+        OnPropertyChanged(nameof(Description));
+        OnPropertyChanged(nameof(ToggleLabel));
+    }
+
+    [RelayCommand]
+    private void ToggleExpanded() => IsExpanded = !IsExpanded;
 }
 
 /// <summary>Аналог PlansScreen.kt/PlansViewModel.kt — своя подписка, DaysRing, тарифы
@@ -422,7 +446,7 @@ public sealed partial class PlansViewModel : ObservableObject
             {
                 Id = plan.Id,
                 Name = plan.Name,
-                Description = plan.Description,
+                FullDescription = plan.Description,
                 PriceLabel = priceLabel,
                 IsCurrent = plan.Name == PlanName
             });

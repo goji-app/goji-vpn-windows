@@ -122,6 +122,10 @@
                                         <TextBlock Text="{Binding Name}" FontFamily="{StaticResource ManropeSemiBoldFamily}" FontSize="13.5"/>
                                         <TextBlock Text="{Binding Description}" FontFamily="{StaticResource ManropeMediumFamily}" FontSize="10.5"
                                                    Foreground="{DynamicResource TextMutedBrush}" Margin="0,3,8,0" TextWrapping="Wrap"/>
+                                        <Button Content="{Binding ToggleLabel}" Style="{StaticResource LinkButton}" FontSize="9.5"
+                                                HorizontalAlignment="Left" Padding="0" Margin="0,2,0,0"
+                                                Command="{Binding ToggleExpandedCommand}"
+                                                Visibility="{Binding ShowDescriptionToggle, Converter={StaticResource BoolToVisibilityConverter}}"/>
                                     </StackPanel>
                                     <TextBlock Grid.Column="1" Text="{Binding PriceLabel}" FontFamily="{StaticResource ManropeExtraBoldFamily}"
                                                FontSize="16" VerticalAlignment="Center"/>
