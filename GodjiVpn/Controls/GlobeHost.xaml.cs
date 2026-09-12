@@ -20,6 +20,7 @@ public partial class GlobeHost : UserControl
 {
     private const string VirtualHost = "godji.local";
     private bool _ready;
+    private bool _disposed;
     private readonly Queue<Func<Task>> _pending = new();
 
     public GlobeHost()
@@ -34,6 +35,15 @@ public partial class GlobeHost : UserControl
         // нескольких логинах/логаутах за сессию это утечка процессов/памяти.
         Unloaded += (_, _) =>
         {
+            // Быстрый логин (например через WebLoginWindow, когда пользователь уже залогинен
+            // на сайте) может заменить LoginView на ShellView раньше, чем WebView2 глобуса
+            // закончит асинхронную инициализацию/навигацию — тогда её продолжение после await
+            // резюмируется уже после Dispose() ниже и падает с "Cannot access a disposed
+            // object. Object name: 'Web'." (реальный краш пользователя). _disposed проверяется
+            // в каждой точке после await/в отложенных вызовах, чтобы такое продолжение просто
+            // тихо остановилось, а не обращалось к освобождённому Web.
+            _disposed = true;
+            _pending.Clear();
             if (ThemeService.Current != null) ThemeService.Current.Changed -= OnThemeChanged;
             Web.Dispose();
         };
@@ -41,7 +51,7 @@ public partial class GlobeHost : UserControl
 
     private async Task InitializeAsync()
     {
-        if (_ready) return;
+        if (_ready || _disposed) return;
 
         try
         {
@@ -49,7 +59,9 @@ public partial class GlobeHost : UserControl
             // данных, которую использует и WebLoginWindow, вместо создания второй независимой
             // копии по умолчанию рядом с exe (там нет прав на запись в Program Files).
             var env = await WebView2EnvironmentProvider.GetAsync();
+            if (_disposed) return;
             await Web.EnsureCoreWebView2Async(env);
+            if (_disposed) return;
 
             var globeDir = Path.Combine(AppContext.BaseDirectory, "Assets", "Globe");
             Web.CoreWebView2.SetVirtualHostNameToFolderMapping(
@@ -57,10 +69,10 @@ public partial class GlobeHost : UserControl
 
             Web.CoreWebView2.NavigationCompleted += async (_, e) =>
             {
-                if (!e.IsSuccess) return;
+                if (_disposed || !e.IsSuccess) return;
                 _ready = true;
                 await SetThemeAsync(ThemeService.Current?.IsDark ?? false);
-                while (_pending.Count > 0) await _pending.Dequeue()();
+                while (_pending.Count > 0 && !_disposed) await _pending.Dequeue()();
             };
             Web.CoreWebView2.Navigate($"https://{VirtualHost}/globe.html");
 
@@ -80,7 +92,11 @@ public partial class GlobeHost : UserControl
         }
     }
 
-    private async void OnThemeChanged() => await SetThemeAsync(ThemeService.Current?.IsDark ?? false);
+    private async void OnThemeChanged()
+    {
+        if (_disposed) return;
+        await SetThemeAsync(ThemeService.Current?.IsDark ?? false);
+    }
 
     public Task SetThemeAsync(bool isDark) =>
         RunAsync($"window.godjiSetTheme && window.godjiSetTheme('{(isDark ? "dark" : "light")}')");
@@ -95,8 +111,9 @@ public partial class GlobeHost : UserControl
 
     private Task RunAsync(string script)
     {
+        if (_disposed) return Task.CompletedTask;
         if (_ready) return Web.CoreWebView2.ExecuteScriptAsync(script);
-        _pending.Enqueue(() => Web.CoreWebView2.ExecuteScriptAsync(script));
+        _pending.Enqueue(() => _disposed ? Task.CompletedTask : Web.CoreWebView2.ExecuteScriptAsync(script));
         return Task.CompletedTask;
     }
 
