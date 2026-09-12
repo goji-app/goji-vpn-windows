@@ -275,6 +275,10 @@ class GojiGlobe extends HTMLElement {
       marker.position.copy(at);
       marker.lookAt(at.clone().multiplyScalar(2));
       marker.visible = status !== 'off';
+      // Точку А (дом) раньше рисовали всегда — по мотивам референсного видео (см. Android
+      // GojiGlobeRenderer.kt) она должна гореть только пока реально что-то происходит
+      // (подключение/подключено), в состоянии "off" глобус остаётся полностью пустым.
+      home.visible = status !== 'off';
       setHighlight(status === 'off' ? null : nd.country);
 
       // frame the node (biased toward it, home still in view) and lock once connected
