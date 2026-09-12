@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Runtime.CompilerServices;
@@ -166,7 +167,12 @@ public sealed class VpnEngine : INotifyPropertyChanged
             LogEngine($"sing-box.exe started, pid={_singBoxProcess.Id}");
             AttachExitWatch(_singBoxProcess, "sing-box.exe");
 
-            _actualAdapterName = await WaitForAdapterAsync(TimeSpan.FromSeconds(25)).ConfigureAwait(false);
+            // 25с оказалось мало у реального пользователя — по логу sing-box адаптер (с уже
+            // ходящим через него трафиком) поднимался почти к самому краю этого окна на его
+            // машине; 40с даёт запас на медленную инициализацию Wintun/сетевого профиля
+            // Windows, не удлиняя типичный (быстрый) случай — цикл возвращается сразу же, как
+            // адаптер найден, а не ждёт полный таймаут.
+            _actualAdapterName = await WaitForAdapterAsync(TimeSpan.FromSeconds(40)).ConfigureAwait(false);
             LogEngine($"adapter found: {_actualAdapterName}");
 
             // Пока IsRunning ещё false, OnCoreProcessExitedAsync на смерть любого из ядер молча
@@ -631,6 +637,7 @@ public sealed class VpnEngine : INotifyPropertyChanged
     /// RequestedAdapterName, если Windows его переименовала в процессе идентификации сети.</returns>
     private static async Task<string> WaitForAdapterAsync(TimeSpan timeout)
     {
+        var expectedIp = IPAddress.Parse(AdapterIp);
         var deadline = DateTime.UtcNow + timeout;
         while (DateTime.UtcNow < deadline)
         {
@@ -640,8 +647,20 @@ public sealed class VpnEngine : INotifyPropertyChanged
             // нуля, а реактивирует существующий), так что "новый" интерфейс мог никогда не
             // появиться, хотя реальный адаптер уже поднят и рабочий. Практически на машине
             // всегда ровно один Wintun-адаптер под нашу VPN — этого достаточно.
-            var candidate = NetworkInterface.GetAllNetworkInterfaces()
-                .FirstOrDefault(n => n.Description.Contains("Wintun", StringComparison.OrdinalIgnoreCase));
+            //
+            // Проверка ТОЛЬКО по Description содержит "Wintun" оказалась недостаточной у
+            // реального пользователя: лог sing-box подтверждал, что адаптер поднят и трафик
+            // (172.19.0.1) через него уже ходит (DNS, inbound/outbound tun-соединения), а этот
+            // цикл всё равно не находил его 25 секунд подряд и падал по таймауту — на той
+            // машине Description либо не совпадал с ожидаемым, либо GetAllNetworkInterfaces()
+            // отставал от фактического состояния адаптера. Добавлена вторая, независимая
+            // проверка — по факту наличия у интерфейса собственного IPv4-адреса AdapterIp
+            // (172.19.0.1), который sing-box всегда присваивает адаптеру сам и который уже
+            // подтверждённо активен в её логе — это прямое доказательство готовности адаптера,
+            // не зависящее от текста Description.
+            var candidate = NetworkInterface.GetAllNetworkInterfaces().FirstOrDefault(n =>
+                n.Description.Contains("Wintun", StringComparison.OrdinalIgnoreCase) ||
+                n.GetIPProperties().UnicastAddresses.Any(a => a.Address.Equals(expectedIp)));
             if (candidate != null) return candidate.Name;
             await Task.Delay(200).ConfigureAwait(false);
         }
