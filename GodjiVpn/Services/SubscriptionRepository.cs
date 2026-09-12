@@ -90,6 +90,16 @@ public sealed class SubscriptionRepository : INotifyPropertyChanged
 
         var active = subsResponse.Subscriptions.FirstOrDefault(s => s.IsPrimary)
             ?? subsResponse.Subscriptions.FirstOrDefault();
+
+        // С бэкенда 7.1.0 traffic не приходит в списке (см. SubscriptionInfo.Traffic) — если
+        // его нет, дозапрашиваем одиночным эндпоинтом. Сбой дозапроса не должен откатывать уже
+        // полученную active — просто трафик останется пустым до следующего обновления.
+        if (active != null && active.Traffic == null)
+        {
+            try { active = await _api.GetSubscriptionAsync(active.Id); }
+            catch { /* не критично — попробуем на следующем RefreshAsync */ }
+        }
+
         Subscription = active;
         if (active == null)
         {

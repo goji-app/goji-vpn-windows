@@ -82,6 +82,12 @@ public sealed class ApiClient
     public async Task<SubscriptionsResponse> GetSubscriptionsAsync(CancellationToken ct = default) =>
         await GetAsync<SubscriptionsResponse>("api/subscriptions", ct).ConfigureAwait(false);
 
+    /// <summary>С бэкенда 7.1.0 трафик убрали из списка (см. SubscriptionInfo.Traffic) — этот
+    /// одиночный эндпоинт по-прежнему отдаёт его, дозапрашиваем им при необходимости
+    /// (см. SubscriptionRepository.RefreshAsync).</summary>
+    public async Task<SubscriptionInfo> GetSubscriptionAsync(long id, CancellationToken ct = default) =>
+        await GetAsync<SubscriptionInfo>($"api/subscriptions/{id}", ct).ConfigureAwait(false);
+
     public async Task<PlansResponse> GetPlansAsync(CancellationToken ct = default) =>
         await GetAsync<PlansResponse>("api/dashboard/plans", ct).ConfigureAwait(false);
 

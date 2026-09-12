@@ -143,9 +143,9 @@ public sealed partial class ConnectViewModel : ObservableObject, IDisposable
         PlanName = sub?.PlanName ?? "—";
         ExpiryLabel = sub?.ExpireAt is { } iso ? DateFormat.FormatDate(iso) : "—";
         DaysLeft = sub?.DaysLeft ?? 0;
-        UsedGb = (sub?.Traffic.UsedBytes ?? 0) / 1_000_000_000.0;
-        QuotaGb = (sub?.Traffic.LimitBytes ?? 0) / 1_000_000_000.0;
-        IsUnlimited = sub?.Traffic.IsUnlimited ?? false;
+        UsedGb = (sub?.Traffic?.UsedBytes ?? 0) / 1_000_000_000.0;
+        QuotaGb = (sub?.Traffic?.LimitBytes ?? 0) / 1_000_000_000.0;
+        IsUnlimited = sub?.Traffic?.IsUnlimited ?? false;
 
         if (IsConnected)
         {

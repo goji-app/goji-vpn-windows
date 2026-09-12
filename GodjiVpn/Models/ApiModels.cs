@@ -122,7 +122,11 @@ public sealed class SubscriptionInfo
     /// см. Models.kt (Android): по умолчанию считаем "не триал".</summary>
     public string? Kind { get; set; }
 
-    public TrafficInfo Traffic { get; set; } = new();
+    /// <summary>С бэкенда 7.1.0 в списке api/subscriptions это поле больше не приходит (только
+    /// в одиночном api/subscriptions/{id}) — см. Models.kt (Android): val traffic: TrafficInfo?
+    /// = null. Раньше поле было не-nullable, из-за чего весь список подписок падал при парсинге
+    /// целиком. См. SubscriptionRepository.RefreshAsync — дозапрашивает по id, если null.</summary>
+    public TrafficInfo? Traffic { get; set; }
 }
 
 public sealed class TrafficInfo
