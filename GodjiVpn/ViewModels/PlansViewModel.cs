@@ -177,14 +177,43 @@ public sealed partial class PlansViewModel : ObservableObject
     // + обычный BoolToVisibilityConverter, а не переиспользование NullToVisibilityConverter.
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasReferral))]
+    [NotifyPropertyChangedFor(nameof(HasProgram))]
+    [NotifyPropertyChangedFor(nameof(ShowProgramTabs))]
+    [NotifyPropertyChangedFor(nameof(ShowReferralCard))]
+    [NotifyPropertyChangedFor(nameof(ShowPartnerCard))]
     private ReferralUiModel? referral;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasPartner))]
+    [NotifyPropertyChangedFor(nameof(HasProgram))]
+    [NotifyPropertyChangedFor(nameof(ShowProgramTabs))]
+    [NotifyPropertyChangedFor(nameof(ShowReferralCard))]
+    [NotifyPropertyChangedFor(nameof(ShowPartnerCard))]
     private PartnerUiModel? partner;
 
     public bool HasReferral => Referral != null;
     public bool HasPartner => Partner != null;
+
+    /// <summary>Рефералы и партнёрка раньше были двумя отдельными секциями подряд — визуально
+    /// дублировали друг друга (у обеих ссылка/сводка/список). Объединены в одно меню
+    /// "Программа" с переключателем вкладок, когда доступны обе сразу; если доступна только
+    /// одна — показываем её карточку без лишнего переключателя. Порт из Android
+    /// PlansScreen.kt (ProgramSection).</summary>
+    [ObservableProperty] private int programTab;
+
+    public bool HasProgram => HasReferral || HasPartner;
+    public bool ShowProgramTabs => HasReferral && HasPartner;
+    public bool ShowReferralCard => HasReferral && (!HasPartner || ProgramTab == 0);
+    public bool ShowPartnerCard => HasPartner && (!HasReferral || ProgramTab == 1);
+
+    partial void OnProgramTabChanged(int value)
+    {
+        OnPropertyChanged(nameof(ShowReferralCard));
+        OnPropertyChanged(nameof(ShowPartnerCard));
+    }
+
+    [RelayCommand]
+    private void SelectProgramTab(string tab) => ProgramTab = tab == "partner" ? 1 : 0;
 
     private long? _subscriptionId;
 
