@@ -123,8 +123,8 @@ public partial class App : Application
         _hourlyRefreshTimer.Tick += async (_, _) => await subscriptionRepository.RefreshAsync();
         _hourlyRefreshTimer.Start();
 
-        // Раз в 6 часов достаточно — GitHub Releases не меняются ежеминутно, а сама проверка
-        // (одна GET-заявка на api.github.com) дешёвая. Уведомление в трее — не чаще одного
+        // Раз в сутки — как в Android (UpdateCheckWorker: "Раз в сутки"); GitHub Releases не
+        // меняются ежеминутно, чаще проверять незачем. Уведомление в трее — не чаще одного
         // раза на версию (см. UpdateNotifier), незамеченное не превращается в спам.
         async Task CheckForUpdatesAsync()
         {
@@ -133,7 +133,7 @@ public partial class App : Application
             if (update != null) updateNotifier.Check(update);
         }
         _ = CheckForUpdatesAsync();
-        _updateCheckTimer = new DispatcherTimer { Interval = TimeSpan.FromHours(6) };
+        _updateCheckTimer = new DispatcherTimer { Interval = TimeSpan.FromHours(24) };
         _updateCheckTimer.Tick += async (_, _) => await CheckForUpdatesAsync();
         _updateCheckTimer.Start();
 
