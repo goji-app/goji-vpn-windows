@@ -13,7 +13,6 @@ namespace GodjiVpn;
 public partial class App : Application
 {
     private SingleInstanceService? _singleInstance;
-    private LoginViewModel? _loginViewModel;
     private SubscriptionRepository? _subscriptionRepository;
     private DispatcherTimer? _hourlyRefreshTimer;
     private DispatcherTimer? _updateCheckTimer;
@@ -77,7 +76,6 @@ public partial class App : Application
         var vpnEngine = new VpnEngine(); // конструктор сам регистрирует себя в VpnEngine.Current
 
         var loginViewModel = new LoginViewModel(apiClient, tokenStore);
-        _loginViewModel = loginViewModel;
         var connectViewModel = new ConnectViewModel(vpnEngine, subscriptionRepository);
         var pingSettings = new PingSettings();
         var pingService = new PingService(pingSettings);
@@ -113,11 +111,13 @@ public partial class App : Application
 
         window.Show();
 
-        try { OAuthProtocolRegistrar.EnsureRegistered(); }
-        catch { /* реестр недоступен (групповые политики и т.п.) — OAuth-вход просто не заработает, email+OTP не затронут */ }
-
-        _singleInstance.ActivationRequested += url => Dispatcher.Invoke(() => HandleActivationUrl(url, window));
-        if (activationUrl != null) HandleActivationUrl(activationUrl, window);
+        // godjivpn:// раньше был нужен только для возврата OAuth-кода из системного браузера
+        // (native-exchange, сломан на бэкенде 7.1.0 — см. LoginViewModel.OpenWebLoginAsync,
+        // заменён на встроенное окно веб-входа). Регистрация схемы в реестре (были
+        // OAuthProtocolRegistrar.EnsureRegistered()) больше не нужна — обработчик активации
+        // ниже остаётся общей защитой от случайного повторного запуска процесса.
+        _singleInstance.ActivationRequested += _ => Dispatcher.Invoke(() => HandleActivationUrl(window));
+        if (activationUrl != null) HandleActivationUrl(window);
 
         _hourlyRefreshTimer = new DispatcherTimer { Interval = TimeSpan.FromHours(1) };
         _hourlyRefreshTimer.Tick += async (_, _) => await subscriptionRepository.RefreshAsync();
@@ -140,32 +140,13 @@ public partial class App : Application
         await mainViewModel.InitializeAsync();
     }
 
-    /// <summary>godjivpn://oauth2redirect?code=...&amp;provider=... — тот же формат, что
-    /// разбирает OAuthCallbackActivity в Android.</summary>
-    private void HandleActivationUrl(string url, MainWindow window)
+    /// <summary>Второй экземпляр процесса (случайный повторный запуск .exe) передаёт нам эстафету
+    /// через именованный pipe вместо открытия своего окна — просто поднимаем уже существующее.</summary>
+    private static void HandleActivationUrl(MainWindow window)
     {
         window.Show();
         window.WindowState = WindowState.Normal;
         window.Activate();
-
-        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)) return;
-        var query = ParseQuery(uri.Query);
-        query.TryGetValue("code", out var code);
-        query.TryGetValue("provider", out var provider);
-        _ = _loginViewModel?.CompleteOAuthAsync(provider, code);
-    }
-
-    private static Dictionary<string, string> ParseQuery(string query)
-    {
-        var result = new Dictionary<string, string>();
-        foreach (var pair in query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries))
-        {
-            var parts = pair.Split('=', 2);
-            var key = Uri.UnescapeDataString(parts[0]);
-            var value = parts.Length > 1 ? Uri.UnescapeDataString(parts[1]) : "";
-            result[key] = value;
-        }
-        return result;
     }
 
     /// <summary>Единственный путь закрыть процесс целиком (крестик на окне сворачивает в

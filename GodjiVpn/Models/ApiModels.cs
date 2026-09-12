@@ -79,38 +79,6 @@ public sealed class MeResponse
     public bool ConsentRequired { get; set; }
 }
 
-// ── OAuth (google/yandex — PKCE, тот же redirect URI godjivpn://oauth2redirect,
-//    что и Android; telegram-oidc существует на бэкенде, но там сломан — как и в
-//    Android, кнопка Telegram остаётся выключенной с бейджем "СКОРО") ───────
-
-public sealed class StartAuthResponse
-{
-    [JsonPropertyName("auth_url")]
-    public string AuthUrl { get; set; } = "";
-}
-
-public sealed class NativeExchangeRequest
-{
-    public string Code { get; set; } = "";
-
-    [JsonPropertyName("code_verifier")]
-    public string CodeVerifier { get; set; } = "";
-
-    public string Provider { get; set; } = "";
-}
-
-public sealed class NativeExchangeResponse
-{
-    [JsonPropertyName("access_token")]
-    public string AccessToken { get; set; } = "";
-
-    [JsonPropertyName("refresh_token")]
-    public string? RefreshToken { get; set; }
-
-    [JsonPropertyName("expires_in")]
-    public long ExpiresIn { get; set; }
-}
-
 public sealed class ConsentRequest
 {
     public bool Terms { get; set; } = true;

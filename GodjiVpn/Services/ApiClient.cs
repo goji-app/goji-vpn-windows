@@ -76,19 +76,6 @@ public sealed class ApiClient
     public async Task<MeResponse> GetMeAsync(CancellationToken ct = default) =>
         await GetAsync<MeResponse>("api/auth/me", ct).ConfigureAwait(false);
 
-    /// <summary>provider: "google" | "yandex" | "telegram-oidc" (последний на бэкенде сломан,
-    /// см. LoginViewModel — кнопка Telegram остаётся выключенной, как и в Android). Параметр
-    /// называется именно app_redirect (сверено с Android-кодом — с redirect_uri сервер не
-    /// редиректил обратно в приложение).</summary>
-    public async Task<StartAuthResponse> StartOAuthAsync(string provider, string appRedirect, string codeChallenge, CancellationToken ct = default) =>
-        await GetAsync<StartAuthResponse>(
-            $"api/auth/{provider}/start?app_redirect={Uri.EscapeDataString(appRedirect)}&code_challenge={Uri.EscapeDataString(codeChallenge)}&code_challenge_method=S256",
-            ct).ConfigureAwait(false);
-
-    public async Task<NativeExchangeResponse> ExchangeNativeOAuthAsync(string code, string codeVerifier, string provider, CancellationToken ct = default) =>
-        await PostAsync<NativeExchangeRequest, NativeExchangeResponse>("api/auth/native/exchange",
-            new NativeExchangeRequest { Code = code, CodeVerifier = codeVerifier, Provider = provider }, ct).ConfigureAwait(false);
-
     public async Task ConsentAsync(CancellationToken ct = default) =>
         await PostAsync<ConsentRequest, object?>("api/auth/consent", new ConsentRequest(), ct).ConfigureAwait(false);
 

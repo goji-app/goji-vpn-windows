@@ -45,15 +45,10 @@ public partial class GlobeHost : UserControl
 
         try
         {
-            // По умолчанию WebView2 создаёт свою папку данных (EBWebView) рядом с exe —
-            // при установке в Program Files туда нет прав на запись даже под администратором
-            // (виртуализация/ACL Program Files), из-за чего EnsureCoreWebView2Async падает с
-            // "Не удалось создать каталог данных". Поэтому явно указываем UserDataFolder в
-            // %LOCALAPPDATA%, куда запись всегда разрешена текущему пользователю.
-            var userDataFolder = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "GodjiVpn", "WebView2");
-            var env = await CoreWebView2Environment.CreateAsync(userDataFolder: userDataFolder);
+            // Общий Environment на процесс (см. WebView2EnvironmentProvider) — та же папка
+            // данных, которую использует и WebLoginWindow, вместо создания второй независимой
+            // копии по умолчанию рядом с exe (там нет прав на запись в Program Files).
+            var env = await WebView2EnvironmentProvider.GetAsync();
             await Web.EnsureCoreWebView2Async(env);
 
             var globeDir = Path.Combine(AppContext.BaseDirectory, "Assets", "Globe");

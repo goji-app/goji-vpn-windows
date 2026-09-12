@@ -51,21 +51,15 @@
                     </Grid>
                 </Border>
 
-                <!-- OAuth-способы входа -->
+                <!-- Вход через сайт — раньше здесь были отдельные кнопки Google/Telegram/Yandex,
+                     но нативный обмен кода на токен (api/auth/native/exchange) сломан на бэкенде
+                     7.1.0 для всех провайдеров без исключения. Все три вели бы в одно и то же
+                     место — полноценный веб-вход сайта во встроенном окне (см.
+                     LoginViewModel.OpenWebLoginAsync/Views/WebLoginWindow), где пользователь сам
+                     выбирает провайдера, — поэтому оставили одну кнопку, как и в Android-версии. -->
                 <StackPanel Visibility="{Binding EmailMode, Converter={StaticResource InverseBoolToVisibilityConverter}}">
-                    <Button Content="Продолжить через Google" Style="{StaticResource InkButton}" Height="54"
-                            Command="{Binding StartGoogleOAuthCommand}" Margin="0,0,0,8"/>
-
-                    <Grid Margin="0,0,0,8">
-                        <Button Content="Через Telegram" Style="{StaticResource SecondaryButton}" Height="50" IsEnabled="False"/>
-                        <Border Background="{DynamicResource TerracottaBrush}" CornerRadius="10" Padding="7,3"
-                                HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,14,0" IsHitTestVisible="False">
-                            <TextBlock Text="СКОРО" FontFamily="{StaticResource ManropeExtraBoldFamily}" FontSize="9" Foreground="White"/>
-                        </Border>
-                    </Grid>
-
-                    <Button Content="Через Яндекс" Style="{StaticResource SecondaryButton}" Height="50"
-                            Command="{Binding StartYandexOAuthCommand}" Margin="0,0,0,10"/>
+                    <Button Content="Продолжить через сайт" Style="{StaticResource InkButton}" Height="54"
+                            Command="{Binding OpenWebLoginCommand}" Margin="0,0,0,10"/>
 
                     <Button Content="Через email и код из письма" Style="{StaticResource LinkButton}" Command="{Binding ShowEmailFormCommand}"/>
                 </StackPanel>

@@ -1,17 +1,18 @@
 using System.Diagnostics;
+using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GodjiVpn.Services;
+using GodjiVpn.Views;
 
 namespace GodjiVpn.ViewModels;
 
-/// <summary>Аналог LoginViewModel.kt/AuthRepository.kt (Android) — email+OTP и OAuth
-/// (Google/Yandex) через тот же redirect URI, что и мобильное приложение. Telegram OAuth
-/// оставлена выключенной кнопкой ("СКОРО") — на бэкенде она сломана (invalid_client при
-/// обмене токена), это не недоработка порта, так же было решено и в Android-версии.</summary>
+/// <summary>Аналог LoginViewModel.kt/AuthRepository.kt (Android) — email+OTP и вход через сайт
+/// (см. OpenWebLoginAsync). Раньше здесь были отдельные PKCE-команды для Google/Yandex/Telegram
+/// (native-exchange OAuth) — убраны целиком: на бэкенде 7.1.0 api/auth/native/exchange отвечает
+/// 400 на любой запрос независимо от провайдера, чинить было нечего, только заменять механизм.</summary>
 public sealed partial class LoginViewModel : ObservableObject
 {
-    private const string OAuthRedirectUri = "godjivpn://oauth2redirect";
     private const string BotUrl = "https://t.me/Shadow_Duck_bot";
     // Домен/бренд ShadowDuck — легаси-название бэкенда (см. память project-remnawave-backend-
     // architecture), не Godji; ссылки скопированы как есть из рабочего Android-кода.
@@ -20,9 +21,6 @@ public sealed partial class LoginViewModel : ObservableObject
 
     private readonly ApiClient _api;
     private readonly TokenStore _tokenStore;
-
-    private string? _pendingVerifier;
-    private string? _pendingProvider;
 
     public event Action? LoggedIn;
 
@@ -109,8 +107,6 @@ public sealed partial class LoginViewModel : ObservableObject
         IsBusy = false;
         ErrorMessage = null;
         InfoMessage = null;
-        _pendingVerifier = null;
-        _pendingProvider = null;
     }
 
     [RelayCommand]
@@ -122,62 +118,23 @@ public sealed partial class LoginViewModel : ObservableObject
         InfoMessage = null;
     }
 
-    /// <summary>Шаг 1: открывает системный браузер на OAuth-странице провайдера. Шаг 2
-    /// (обмен кода на токен) происходит в CompleteOAuthAsync — вызывается из App.xaml.cs,
-    /// когда Windows перезапускает нас по godjivpn://oauth2redirect (см. SingleInstanceService/
-    /// OAuthProtocolRegistrar).</summary>
-    private async Task StartOAuthAsync(string provider)
+    /// <summary>Открывает встроенное окно веб-входа (см. Views/WebLoginWindow) — показывает
+    /// пользователю сам сайт целиком, ждёт, пока он там залогинится любым способом (Google/
+    /// Яндекс/Telegram/email), и забирает сессионный токен из выставленной сайтом куки. Замена
+    /// сломанного на бэкенде 7.1.0 native-exchange OAuth (см. заголовок класса), портировано
+    /// с Android WebLoginActivity.kt.</summary>
+    [RelayCommand]
+    private async Task OpenWebLoginAsync()
     {
         ErrorMessage = null;
+        var window = new WebLoginWindow { Owner = Application.Current.MainWindow };
+        var completed = window.ShowDialog();
+        if (completed != true || string.IsNullOrEmpty(window.SessionToken)) return;
+
         IsBusy = true;
         try
         {
-            var verifier = Pkce.GenerateVerifier();
-            var challenge = Pkce.ChallengeFor(verifier);
-            var response = await _api.StartOAuthAsync(provider, OAuthRedirectUri, challenge);
-            _pendingVerifier = verifier;
-            _pendingProvider = provider;
-            Process.Start(new ProcessStartInfo(response.AuthUrl) { UseShellExecute = true });
-        }
-        catch (Exception ex)
-        {
-            ErrorMessage = "Не удалось начать вход: " + ex.Message;
-        }
-        finally
-        {
-            IsBusy = false;
-        }
-    }
-
-    [RelayCommand]
-    private Task StartGoogleOAuth() => StartOAuthAsync("google");
-
-    [RelayCommand]
-    private Task StartYandexOAuth() => StartOAuthAsync("yandex");
-
-    /// <summary>Вызывается после возврата из браузера по godjivpn://oauth2redirect?code=...</summary>
-    public async Task CompleteOAuthAsync(string? provider, string? code)
-    {
-        var verifier = _pendingVerifier;
-        provider ??= _pendingProvider;
-        if (string.IsNullOrEmpty(code) || string.IsNullOrEmpty(provider) || string.IsNullOrEmpty(verifier))
-        {
-            ErrorMessage = "Не удалось завершить вход — попробуйте ещё раз";
-            return;
-        }
-
-        ErrorMessage = null;
-        IsBusy = true;
-        try
-        {
-            var response = await _api.ExchangeNativeOAuthAsync(code, verifier, provider);
-            _pendingVerifier = null;
-            _pendingProvider = null;
-            await OnAuthenticatedAsync(response.AccessToken);
-        }
-        catch (Exception ex)
-        {
-            ErrorMessage = "Не удалось завершить вход: " + ex.Message;
+            await OnAuthenticatedAsync(window.SessionToken);
         }
         finally
         {
