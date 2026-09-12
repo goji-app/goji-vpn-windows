@@ -83,8 +83,8 @@ public sealed partial class LoginViewModel : ObservableObject
         IsBusy = true;
         try
         {
-            var response = await _api.VerifyOtpAsync(Email.Trim(), Code.Trim());
-            await OnAuthenticatedAsync(response.Token);
+            var (_, token) = await _api.VerifyOtpAsync(Email.Trim(), Code.Trim());
+            await OnAuthenticatedAsync(token);
         }
         catch (Exception ex)
         {

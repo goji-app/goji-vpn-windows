@@ -43,10 +43,13 @@ public sealed class VerifyOtpRequest
     public string Code { get; set; } = "";
 }
 
+// С обновления бэкенда до 7.1.0 тело больше не содержит токен вообще (подтверждено живым
+// запросом на стороне Android — см. AuthRepository.kt/verifyOtp там) — сессия теперь выдаётся
+// через HttpOnly Set-Cookie (rw_session_token), а не в JSON. Сам JWT из этой куки при этом
+// по-прежнему работает как обычный Bearer-токен. См. ApiClient.VerifyOtpAsync — достаёт его
+// из заголовков ответа, не из этого тела.
 public sealed class VerifyOtpResponse
 {
-    public string Token { get; set; } = "";
-
     [JsonPropertyName("expires_in")]
     public long ExpiresIn { get; set; }
 

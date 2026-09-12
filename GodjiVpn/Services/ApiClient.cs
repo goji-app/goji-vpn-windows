@@ -33,7 +33,12 @@ public sealed class ApiClient
             // иначе они шли бы мимо VPN напрямую, что для просмотра тарифов/подписки не
             // критично, но ломает единообразие с тем, что видит сам пользователь через тоннель.
             Proxy = new TunnelAwareProxy(),
-            UseProxy = true
+            UseProxy = true,
+            // По умолчанию true — тогда .NET сам заводит CookieContainer и молча прикладывает
+            // все полученные куки к последующим запросам. Нам это не нужно (Authorization
+            // выставляем сами через Bearer, см. PrepareRequest) и мешало бы читать нужную нам
+            // Set-Cookie как обычный заголовок ответа (см. VerifyOtpAsync) без побочных эффектов.
+            UseCookies = false
         };
         _http = new HttpClient(handler) { BaseAddress = new Uri(BaseUrl) };
         // Дефолтный User-Agent у HttpClient пустой (System.Net.Http без явного значения ничего
@@ -50,8 +55,23 @@ public sealed class ApiClient
     public async Task<SendOtpResponse> SendOtpAsync(string email, CancellationToken ct = default) =>
         await PostAsync<SendOtpRequest, SendOtpResponse>("api/auth/email/send-otp", new SendOtpRequest { Email = email }, ct).ConfigureAwait(false);
 
-    public async Task<VerifyOtpResponse> VerifyOtpAsync(string email, string code, CancellationToken ct = default) =>
-        await PostAsync<VerifyOtpRequest, VerifyOtpResponse>("api/auth/email/verify-otp", new VerifyOtpRequest { Email = email, Code = code }, ct).ConfigureAwait(false);
+    /// <summary>С бэкенда 7.1.0 сам токен сессии приходит только в Set-Cookie
+    /// (rw_session_token), не в теле — см. комментарий у VerifyOtpResponse. Поэтому не обычный
+    /// PostAsync (тот отдаёт только десериализованное тело), а раздельно тело + токен из
+    /// заголовков ответа.</summary>
+    public async Task<(VerifyOtpResponse Body, string Token)> VerifyOtpAsync(string email, string code, CancellationToken ct = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, "api/auth/email/verify-otp")
+        {
+            Content = JsonContent.Create(new VerifyOtpRequest { Email = email, Code = code }, options: JsonOptions)
+        };
+        PrepareRequest(request);
+        using var response = await _http.SendAsync(request, ct).ConfigureAwait(false);
+        var body = await ReadOrThrowAsync<VerifyOtpResponse>(response, ct).ConfigureAwait(false);
+        var token = ExtractCookieValue(response, "rw_session_token")
+            ?? throw new InvalidOperationException("В ответе нет куки rw_session_token");
+        return (body, token);
+    }
 
     public async Task<MeResponse> GetMeAsync(CancellationToken ct = default) =>
         await GetAsync<MeResponse>("api/auth/me", ct).ConfigureAwait(false);
@@ -123,6 +143,22 @@ public sealed class ApiClient
         if (!string.IsNullOrEmpty(token))
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         request.Headers.Add("X-Requested-With", "XMLHttpRequest");
+    }
+
+    /// <summary>Set-Cookie может встречаться несколько раз в одном ответе (rw_session_token +
+    /// rw_refresh_token) — берём только нужное по имени, до первой ';' (остальное — атрибуты
+    /// куки: Path/Expires/HttpOnly/Secure/SameSite, не часть значения).</summary>
+    internal static string? ExtractCookieValue(HttpResponseMessage response, string cookieName)
+    {
+        if (!response.Headers.TryGetValues("Set-Cookie", out var cookies)) return null;
+        foreach (var cookie in cookies)
+        {
+            if (!cookie.StartsWith($"{cookieName}=", StringComparison.Ordinal)) continue;
+            var value = cookie[(cookieName.Length + 1)..];
+            var semi = value.IndexOf(';');
+            return semi >= 0 ? value[..semi] : value;
+        }
+        return null;
     }
 
     private static async Task<TResponse> ReadOrThrowAsync<TResponse>(HttpResponseMessage response, CancellationToken ct)
