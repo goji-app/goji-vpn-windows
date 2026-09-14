@@ -103,11 +103,17 @@
                                  HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0">
                             <Ellipse.Style>
                                 <Style TargetType="Ellipse">
+                                    <!-- "Photon bloom" редизайна — исходная непрозрачность (0x80,
+                                         ~0.5 в пике) читалась слишком ярко и отвлекающе на живом
+                                         экране (тот же вывод сделан и в Android-версии: там пик
+                                         уменьшили с 0.85 до 0.4 в тёмной теме), уменьшено до 0x59
+                                         (~0.35). Цвет — уже новый TealBrush редизайна (#00875A),
+                                         был старый до-редизайновый #00A79B. -->
                                     <Setter Property="Fill">
                                         <Setter.Value>
                                             <RadialGradientBrush>
-                                                <GradientStop Color="#8000A79B" Offset="0"/>
-                                                <GradientStop Color="#0000A79B" Offset="1"/>
+                                                <GradientStop Color="#5900875A" Offset="0"/>
+                                                <GradientStop Color="#0000875A" Offset="1"/>
                                             </RadialGradientBrush>
                                         </Setter.Value>
                                     </Setter>
