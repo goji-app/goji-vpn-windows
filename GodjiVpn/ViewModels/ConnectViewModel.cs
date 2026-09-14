@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Media;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -21,6 +22,19 @@ public sealed partial class ConnectViewModel : ObservableObject, IDisposable
     private long _lastRx;
     private long _lastTx;
     private DateTime _lastSampleUtc;
+
+    // Скользящее окно последних замеров для мини-графика в карточках скорости — ощутимо
+    // короче, чем TrafficHistoryRepository (та копит дни, эта — секунды текущей сессии, и не
+    // переживает пересоздание ViewModel, что тут и не нужно). Порт из Android
+    // (ConnectViewModel.downHistory/upHistory).
+    private const int SpeedHistorySize = 30;
+    private readonly List<double> _downHistory = new();
+    private readonly List<double> _upHistory = new();
+
+    [ObservableProperty] private PointCollection downLinePoints = new();
+    [ObservableProperty] private PointCollection downFillPoints = new();
+    [ObservableProperty] private PointCollection upLinePoints = new();
+    [ObservableProperty] private PointCollection upFillPoints = new();
 
     [ObservableProperty] private bool isConnected;
     [ObservableProperty] private bool isConnecting;
@@ -161,6 +175,10 @@ public sealed partial class ConnectViewModel : ObservableObject, IDisposable
             DownSpeedMbps = 0;
             UpSpeedMbps = 0;
             ConnectedTimeLabel = "00:00:00";
+            _downHistory.Clear();
+            _upHistory.Clear();
+            DownLinePoints = new(); DownFillPoints = new();
+            UpLinePoints = new(); UpFillPoints = new();
         }
     }
 
@@ -175,6 +193,13 @@ public sealed partial class ConnectViewModel : ObservableObject, IDisposable
             UpSpeedMbps = Math.Max(counters.Value.TxBytes - _lastTx, 0) / dt / 1_000_000.0;
             _lastRx = counters.Value.RxBytes;
             _lastTx = counters.Value.TxBytes;
+
+            AppendHistory(_downHistory, DownSpeedMbps);
+            AppendHistory(_upHistory, UpSpeedMbps);
+            DownLinePoints = BuildLinePoints(_downHistory);
+            DownFillPoints = BuildFillPoints(DownLinePoints);
+            UpLinePoints = BuildLinePoints(_upHistory);
+            UpFillPoints = BuildFillPoints(UpLinePoints);
         }
         _lastSampleUtc = now;
 
@@ -184,6 +209,34 @@ public sealed partial class ConnectViewModel : ObservableObject, IDisposable
             var elapsed = now - since.Value;
             ConnectedTimeLabel = $"{(int)elapsed.TotalHours:D2}:{elapsed.Minutes:D2}:{elapsed.Seconds:D2}";
         }
+    }
+
+    private static void AppendHistory(List<double> history, double value)
+    {
+        history.Add(value);
+        if (history.Count > SpeedHistorySize) history.RemoveAt(0);
+    }
+
+    /// <summary>Нормализует в единичный квадрат [0,1]×[0,1] (x — позиция по времени, y — 1 у
+    /// нуля/дно, 0 у максимума за окно/верх) вместо пиксельных координат — ConnectView.xaml
+    /// растягивает через Viewbox Stretch="Fill" на актуальный размер карточки, ViewModel не
+    /// должен знать её реальные пиксели.</summary>
+    private static PointCollection BuildLinePoints(IReadOnlyList<double> history)
+    {
+        var points = new PointCollection();
+        if (history.Count < 2) return points;
+        var max = Math.Max(history.Max(), 0.01);
+        for (var i = 0; i < history.Count; i++)
+            points.Add(new Point((double)i / (history.Count - 1), 1 - history[i] / max));
+        return points;
+    }
+
+    /// <summary>Та же линия + замыкание вниз по обоим краям — заливка области под графиком.</summary>
+    private static PointCollection BuildFillPoints(PointCollection linePoints)
+    {
+        if (linePoints.Count == 0) return new PointCollection();
+        var fill = new PointCollection(linePoints) { new Point(1, 1), new Point(0, 1) };
+        return fill;
     }
 
     public void Dispose()
