@@ -127,6 +127,7 @@
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
 
                                 <Border Width="28" Height="28" Background="{DynamicResource ChipBrush}" CornerRadius="8" ClipToBounds="True">
@@ -145,7 +146,26 @@
                                 <TextBlock Grid.Column="1" Text="{Binding DisplayName}" FontFamily="{StaticResource ManropeSemiBoldFamily}"
                                            FontSize="12" VerticalAlignment="Center" Margin="10,0"/>
 
-                                <Button Grid.Column="2" FontSize="11" Padding="4"
+                                <!-- Избранное — закрепляет узел сверху списка (см.
+                                     ServersViewModel.SyncFromRepository), порт из Android. -->
+                                <Button Grid.Column="2" FontSize="15" Padding="6" Margin="0,0,2,0"
+                                        Command="{Binding DataContext.ToggleFavoriteCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                        CommandParameter="{Binding}">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource LinkButton}">
+                                            <Setter Property="Content" Value="☆"/>
+                                            <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsFavorite}" Value="True">
+                                                    <Setter Property="Content" Value="★"/>
+                                                    <Setter Property="Foreground" Value="{DynamicResource WarningBrush}"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+
+                                <Button Grid.Column="3" FontSize="11" Padding="4"
                                         Command="{Binding DataContext.PingOneCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                         CommandParameter="{Binding}">
                                     <Button.Style>
@@ -167,7 +187,7 @@
                                     </Button.Style>
                                 </Button>
 
-                                <Button Grid.Column="3" Content="🗑" FontSize="11" Padding="6,4" Margin="4,0,0,0"
+                                <Button Grid.Column="4" Content="🗑" FontSize="11" Padding="6,4" Margin="4,0,0,0"
                                         Style="{StaticResource LinkButton}"
                                         Visibility="{Binding IsCustom, Converter={StaticResource BoolToVisibilityConverter}}"
                                         Command="{Binding DataContext.RemoveCustomNodeCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"

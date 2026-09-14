@@ -15,6 +15,7 @@ public sealed partial class NodeItem : ObservableObject
     [ObservableProperty] private int pingMs = -2;
     [ObservableProperty] private bool isSelected;
     [ObservableProperty] private bool isChecking;
+    [ObservableProperty] private bool isFavorite;
 
     /// <summary>Добавлен вручную по JSON-профилю (см. CustomNodeStore), а не пришёл с
     /// подписки — только у таких узлов показываем кнопку удаления.</summary>
@@ -35,6 +36,7 @@ public sealed partial class ServersViewModel : ObservableObject
     private readonly SubscriptionRepository _subscription;
     private readonly PingService _pingService;
     private readonly CustomNodeStore _customNodes;
+    private readonly FavoriteServersStore _favorites;
 
     public ObservableCollection<NodeItem> Nodes { get; } = new();
 
@@ -47,14 +49,19 @@ public sealed partial class ServersViewModel : ObservableObject
     [ObservableProperty] private string? refreshResultMessage;
     [ObservableProperty] private bool refreshResultIsError;
 
-    public ServersViewModel(SubscriptionRepository subscription, PingService pingService, CustomNodeStore customNodes)
+    public ServersViewModel(SubscriptionRepository subscription, PingService pingService, CustomNodeStore customNodes, FavoriteServersStore favorites)
     {
         _subscription = subscription;
         _pingService = pingService;
         _customNodes = customNodes;
+        _favorites = favorites;
         _subscription.PropertyChanged += (_, _) => RunOnUiThread(SyncFromRepository);
+        _favorites.Changed += () => RunOnUiThread(SyncFromRepository);
         SyncFromRepository();
     }
+
+    [RelayCommand]
+    private void ToggleFavorite(NodeItem item) => _favorites.Toggle(item.Node.Id);
 
     [RelayCommand]
     private void RemoveCustomNode(NodeItem item)
@@ -86,14 +93,20 @@ public sealed partial class ServersViewModel : ObservableObject
     {
         var selectedId = _subscription.SelectedId;
         var existingById = Nodes.ToDictionary(n => n.Node.Id);
-        Nodes.Clear();
-        foreach (var node in _subscription.Nodes)
+        var newNodes = new List<NodeItem>();
+        // Избранные закреплены сверху (стабильная сортировка — OrderByDescending в .NET
+        // гарантированно стабилен, порядок внутри "избранное"/"не избранное" не меняется),
+        // порт из Android (ServersViewModel.state: sortedByDescending { it.isFavorite }).
+        foreach (var node in _subscription.Nodes.OrderByDescending(n => _favorites.IsFavorite(n.Id)))
         {
             var item = existingById.TryGetValue(node.Id, out var previous)
                 ? new NodeItem { Node = node, IsSelected = node.Id == selectedId, PingMs = previous.PingMs }
                 : new NodeItem { Node = node, IsSelected = node.Id == selectedId };
-            Nodes.Add(item);
+            item.IsFavorite = _favorites.IsFavorite(node.Id);
+            newNodes.Add(item);
         }
+        Nodes.Clear();
+        foreach (var item in newNodes) Nodes.Add(item);
     }
 
     private static void RunOnUiThread(Action action)

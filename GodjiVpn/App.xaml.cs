@@ -67,6 +67,7 @@ public partial class App : Application
         var apiClient = new ApiClient(tokenStore);
         var subscriptionService = new SubscriptionService(hwidProvider);
         var customNodeStore = new CustomNodeStore();
+        var favoriteServersStore = new FavoriteServersStore();
         var trafficHistoryRepository = new TrafficHistoryRepository();
         var subscriptionRepository = new SubscriptionRepository(apiClient, subscriptionService, customNodeStore, trafficHistoryRepository);
         _subscriptionRepository = subscriptionRepository;
@@ -80,7 +81,7 @@ public partial class App : Application
         var connectViewModel = new ConnectViewModel(vpnEngine, subscriptionRepository);
         var pingSettings = new PingSettings();
         var pingService = new PingService(pingSettings);
-        var serversViewModel = new ServersViewModel(subscriptionRepository, pingService, customNodeStore);
+        var serversViewModel = new ServersViewModel(subscriptionRepository, pingService, customNodeStore, favoriteServersStore);
         var plansViewModel = new PlansViewModel(apiClient, subscriptionRepository, trafficHistoryRepository);
         var settingsViewModel = new SettingsViewModel(tokenStore, vpnEngine, hwidProvider, pingSettings, themeService, updateService);
         var shellViewModel = new ShellViewModel(connectViewModel, serversViewModel, plansViewModel, settingsViewModel);
