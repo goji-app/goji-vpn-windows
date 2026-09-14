@@ -141,7 +141,7 @@
                      не раньше момента появления этого обновления на машине) заглянуть нельзя.
                      Порт TrafficHistorySection из Android PlansScreen.kt. -->
                 <StackPanel Visibility="{Binding HasTrafficHistory, Converter={StaticResource BoolToVisibilityConverter}}" Margin="0,0,0,14">
-                    <TextBlock Text="Расход трафика" FontFamily="{StaticResource InstrumentSerifFamily}" FontSize="19" Margin="0,0,0,8"/>
+                    <TextBlock Text="Расход трафика" FontFamily="{StaticResource SpaceGroteskFamily}" FontWeight="Medium" FontSize="19" Margin="0,0,0,8"/>
                     <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource InkBrush}"
                             BorderThickness="1.5" CornerRadius="20" Padding="16">
                         <StackPanel>
@@ -203,7 +203,7 @@
                      переименование и удаление (см. PlansViewModel.Devices/RenameDeviceCommand/
                      DeleteDeviceCommand), порт DevicesSection из Android PlansScreen.kt. -->
                 <StackPanel Visibility="{Binding HasDevices, Converter={StaticResource BoolToVisibilityConverter}}" Margin="0,0,0,14">
-                    <TextBlock Text="Устройства" FontFamily="{StaticResource InstrumentSerifFamily}" FontSize="19" Margin="0,0,0,8"/>
+                    <TextBlock Text="Устройства" FontFamily="{StaticResource SpaceGroteskFamily}" FontWeight="Medium" FontSize="19" Margin="0,0,0,8"/>
                     <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource InkBrush}"
                             BorderThickness="1.5" CornerRadius="20" Padding="16">
                         <StackPanel>
@@ -257,7 +257,7 @@
                      обе фичи или оба запроса не удались — вся секция просто не показывается
                      (тот же принцип, что и у новостей). -->
                 <StackPanel Visibility="{Binding HasProgram, Converter={StaticResource BoolToVisibilityConverter}}" Margin="0,0,0,14">
-                    <TextBlock Text="Программа" FontFamily="{StaticResource InstrumentSerifFamily}" FontSize="19" Margin="0,0,0,8"/>
+                    <TextBlock Text="Программа" FontFamily="{StaticResource SpaceGroteskFamily}" FontWeight="Medium" FontSize="19" Margin="0,0,0,8"/>
 
                     <Border Background="{DynamicResource ChipBrush}" CornerRadius="16" Padding="5" Margin="0,0,0,8"
                             Visibility="{Binding ShowProgramTabs, Converter={StaticResource BoolToVisibilityConverter}}">

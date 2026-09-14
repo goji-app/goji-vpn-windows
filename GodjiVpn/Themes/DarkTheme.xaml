@@ -1,45 +1,46 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <!-- Тёмная палитра — 1:1 с Android GodjiColors.applyDark() (Color.kt). Ink/Surface работают
-         как инвертируемая пара (тёмная кнопка со светлым текстом на светлой теме → светлая
-         кнопка с тёмным текстом на тёмной) — ничего в самих экранах менять не пришлось: и там,
-         и там текст "Surface", фон "Ink". -->
-    <SolidColorBrush x:Key="BgBrush" Color="#121614"/>
-    <SolidColorBrush x:Key="SurfaceBrush" Color="#1B211E"/>
-    <SolidColorBrush x:Key="SurfaceGlassBrush" Color="#1B211E"/>
-    <SolidColorBrush x:Key="InkBrush" Color="#E9EDEB"/>
-    <SolidColorBrush x:Key="InkShadowBrush" Color="#D3DBD8"/>
-    <SolidColorBrush x:Key="TextPrimaryBrush" Color="#EAEFEC"/>
-    <SolidColorBrush x:Key="TextSecondaryBrush" Color="#93A39C"/>
-    <SolidColorBrush x:Key="TextMutedBrush" Color="#93A39C"/>
-    <SolidColorBrush x:Key="TealBrush" Color="#2BC8B8"/>
-    <SolidColorBrush x:Key="TealDeepBrush" Color="#6BE0D2"/>
-    <SolidColorBrush x:Key="TealTintBrush" Color="#17332E"/>
-    <SolidColorBrush x:Key="TealTintBorderBrush" Color="#2C5049"/>
-    <SolidColorBrush x:Key="TerracottaBrush" Color="#E98863"/>
-    <SolidColorBrush x:Key="TerracottaDeepBrush" Color="#FFB294"/>
-    <SolidColorBrush x:Key="TerracottaTintBrush" Color="#3A241C"/>
-    <SolidColorBrush x:Key="TerracottaTintBorderBrush" Color="#5A3A2C"/>
+    <!-- Тёмная палитра "Tactical Sand & Void" (редизайн) — 1:1 с Android GodjiColors.applyDark()
+         (Color.kt): AMOLED-чернота с неоновым изумрудом/коралом. Ink/Surface работают как
+         инвертируемая пара (тёмная кнопка со светлым текстом на светлой теме → светлая кнопка с
+         тёмным текстом на тёмной) — ничего в самих экранах менять не пришлось: и там, и там
+         текст "Surface", фон "Ink". -->
+    <SolidColorBrush x:Key="BgBrush" Color="#0A0E13"/>
+    <SolidColorBrush x:Key="SurfaceBrush" Color="#101419"/>
+    <SolidColorBrush x:Key="SurfaceGlassBrush" Color="#181C21"/>
+    <SolidColorBrush x:Key="InkBrush" Color="#E0E2EA"/>
+    <SolidColorBrush x:Key="InkShadowBrush" Color="#C7CBD4"/>
+    <SolidColorBrush x:Key="TextPrimaryBrush" Color="#E0E2EA"/>
+    <SolidColorBrush x:Key="TextSecondaryBrush" Color="#849588"/>
+    <SolidColorBrush x:Key="TextMutedBrush" Color="#849588"/>
+    <SolidColorBrush x:Key="TealBrush" Color="#00F5A0"/>
+    <SolidColorBrush x:Key="TealDeepBrush" Color="#00B87A"/>
+    <SolidColorBrush x:Key="TealTintBrush" Color="#14332A"/>
+    <SolidColorBrush x:Key="TealTintBorderBrush" Color="#1F4A3B"/>
+    <SolidColorBrush x:Key="TerracottaBrush" Color="#FF5E3A"/>
+    <SolidColorBrush x:Key="TerracottaDeepBrush" Color="#FF8562"/>
+    <SolidColorBrush x:Key="TerracottaTintBrush" Color="#2E1D16"/>
+    <SolidColorBrush x:Key="TerracottaTintBorderBrush" Color="#5C3323"/>
     <SolidColorBrush x:Key="WarningBrush" Color="#E0A63C"/>
-    <SolidColorBrush x:Key="DangerBrush" Color="#E2765F"/>
-    <SolidColorBrush x:Key="JamBgBrush" Color="#3A2A20"/>
-    <SolidColorBrush x:Key="JamBorderBrush" Color="#5C4230"/>
-    <SolidColorBrush x:Key="JamTextBrush" Color="#F0B294"/>
-    <SolidColorBrush x:Key="CardBorderBrush" Color="#2A3230"/>
-    <SolidColorBrush x:Key="CardBorderStrongBrush" Color="#333D3A"/>
-    <SolidColorBrush x:Key="ButtonBorderBrush" Color="#3A433F"/>
-    <SolidColorBrush x:Key="ChipBrush" Color="#232C29"/>
-    <SolidColorBrush x:Key="TrackBgBrush" Color="#2C332E"/>
-    <SolidColorBrush x:Key="BorderTealBrush" Color="#262BC8B8"/>
-    <SolidColorBrush x:Key="PurpleBrush" Color="#FFB294"/>
+    <SolidColorBrush x:Key="DangerBrush" Color="#FF5E3A"/>
+    <SolidColorBrush x:Key="JamBgBrush" Color="#2E1D16"/>
+    <SolidColorBrush x:Key="JamBorderBrush" Color="#5C3323"/>
+    <SolidColorBrush x:Key="JamTextBrush" Color="#FF8562"/>
+    <SolidColorBrush x:Key="CardBorderBrush" Color="#262C31"/>
+    <SolidColorBrush x:Key="CardBorderStrongBrush" Color="#303840"/>
+    <SolidColorBrush x:Key="ButtonBorderBrush" Color="#2E363B"/>
+    <SolidColorBrush x:Key="ChipBrush" Color="#181C21"/>
+    <SolidColorBrush x:Key="TrackBgBrush" Color="#262A30"/>
+    <SolidColorBrush x:Key="BorderTealBrush" Color="#2600F5A0"/>
+    <SolidColorBrush x:Key="PurpleBrush" Color="#00D2FF"/>
 
     <!-- Совместимость со старыми именами ресурсов из MVP-каркаса (первый проход). -->
-    <SolidColorBrush x:Key="PanelBrush" Color="#1B211E"/>
-    <SolidColorBrush x:Key="PanelAltBrush" Color="#1B211E"/>
-    <SolidColorBrush x:Key="BorderBrush" Color="#2A3230"/>
-    <SolidColorBrush x:Key="AccentBrush" Color="#2BC8B8"/>
-    <SolidColorBrush x:Key="AccentDimBrush" Color="#6BE0D2"/>
-    <SolidColorBrush x:Key="TextBrush" Color="#EAEFEC"/>
+    <SolidColorBrush x:Key="PanelBrush" Color="#101419"/>
+    <SolidColorBrush x:Key="PanelAltBrush" Color="#101419"/>
+    <SolidColorBrush x:Key="BorderBrush" Color="#262C31"/>
+    <SolidColorBrush x:Key="AccentBrush" Color="#00F5A0"/>
+    <SolidColorBrush x:Key="AccentDimBrush" Color="#00B87A"/>
+    <SolidColorBrush x:Key="TextBrush" Color="#E0E2EA"/>
 
 </ResourceDictionary>

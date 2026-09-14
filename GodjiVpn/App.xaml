@@ -43,15 +43,28 @@
             <FontFamily x:Key="ManropeExtraBoldFamily">pack://application:,,,/Assets/Fonts/#Manrope ExtraBold</FontFamily>
             <FontFamily x:Key="InstrumentSerifFamily">pack://application:,,,/Assets/Fonts/#Instrument Serif</FontFamily>
 
+            <!-- Редизайн "Tactical Sand & Void" — Space Grotesk сменил Instrument Serif как
+                 шрифт заголовков экранов (см. Headline ниже), JetBrains Mono — служебные
+                 подписи/цифры телеметрии (пинг, скорость, IP). Оба — единственные переменные
+                 (variable) TTF, доступные для этих семейств в google/fonts (нет статичных
+                 начертаний) — в отличие от ManropeFamily* выше (отдельный файл на начертание),
+                 разные насыщенности здесь задаются через FontWeight на самом TextBlock/Run
+                 (WPF интерполирует ось веса переменного шрифта), а не через отдельные ключи-
+                 семейства.-->
+            <FontFamily x:Key="SpaceGroteskFamily">pack://application:,,,/Assets/Fonts/#Space Grotesk</FontFamily>
+            <FontFamily x:Key="JetBrainsMonoFamily">pack://application:,,,/Assets/Fonts/#JetBrains Mono</FontFamily>
+
             <Style TargetType="TextBlock">
                 <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
                 <Setter Property="FontFamily" Value="{StaticResource ManropeFamily}"/>
             </Style>
 
-            <!-- Headline — Instrument Serif, используется для крупных заголовков экранов
-                 ("Твоя подписка", "Где выйти в сеть", приветствие на глобусе и т.п.). -->
+            <!-- Headline — Space Grotesk SemiBold (редизайн, была Instrument Serif), для крупных
+                 заголовков экранов ("Твоя подписка", "Где выйти в сеть", приветствие на глобусе
+                 и т.п.). -->
             <Style x:Key="Headline" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
-                <Setter Property="FontFamily" Value="{StaticResource InstrumentSerifFamily}"/>
+                <Setter Property="FontFamily" Value="{StaticResource SpaceGroteskFamily}"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
                 <Setter Property="FontSize" Value="27"/>
             </Style>
 
