@@ -53,6 +53,18 @@ public sealed class InverseNullToVisibilityConverter : IValueConverter
         throw new NotSupportedException();
 }
 
+/// <summary>Видимость по "есть непустая строка" (см. NullToVisibilityConverter), но сразу как
+/// bool — для DependencyProperty вроде OtpInput.HasError, которым нужен именно bool, не
+/// Visibility.</summary>
+public sealed class NullToBoolConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        !string.IsNullOrEmpty(value as string);
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        throw new NotSupportedException();
+}
+
 /// <summary>Инвертирует NullToVisibilityConverter (например "спиннер, пока IsBusy=false и нет ошибки").</summary>
 public sealed class ZeroToVisibilityConverter : IValueConverter
 {

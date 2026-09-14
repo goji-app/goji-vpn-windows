@@ -66,23 +66,62 @@
 
                 <!-- Email-вход -->
                 <StackPanel Visibility="{Binding EmailMode, Converter={StaticResource BoolToVisibilityConverter}}">
-                    <TextBlock Text="Email" Style="{StaticResource MutedText}" Margin="0,0,0,5"/>
-                    <TextBox Text="{Binding Email, UpdateSourceTrigger=PropertyChanged}"
-                             IsEnabled="{Binding OtpSent, Converter={StaticResource InverseBoolConverter}}" Margin="0,0,0,10"/>
 
-                    <StackPanel Visibility="{Binding OtpSent, Converter={StaticResource BoolToVisibilityConverter}}">
-                        <TextBlock Text="Код из письма" Style="{StaticResource MutedText}" Margin="0,0,0,5"/>
-                        <TextBox Text="{Binding Code, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,10"/>
+                    <!-- До отправки кода — обычная форма email + кнопка. -->
+                    <StackPanel Visibility="{Binding OtpSent, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+                        <TextBlock Text="Email" Style="{StaticResource MutedText}" Margin="0,0,0,5"/>
+                        <TextBox Text="{Binding Email, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,10"/>
+                        <Button Content="{Binding SendOtpButtonText}" Style="{StaticResource PrimaryButton}" Height="54"
+                                Command="{Binding SendOtpCommand}" Margin="0,0,0,8"/>
                     </StackPanel>
 
-                    <Button Content="{Binding SendOtpButtonText}" Style="{StaticResource PrimaryButton}" Height="54"
-                            Command="{Binding SendOtpCommand}" Margin="0,0,0,8"
-                            Visibility="{Binding OtpSent, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
-                    <Button Content="Войти" Style="{StaticResource PrimaryButton}" Height="54"
-                            Command="{Binding VerifyCommand}" Margin="0,0,0,8"
-                            Visibility="{Binding OtpSent, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                    <!-- Код отправлен — сегментированный ввод с автопроверкой (см.
+                         Controls/OtpInput, LoginView.xaml.cs.OnOtpCompleted) вместо
+                         одного текстового поля и отдельной кнопки "Войти". Полноэкранный
+                         успех (IsVerifySuccess) подменяет собой сами клетки на короткое
+                         время перед переходом дальше — портировано из Android
+                         VerifyEmailScreen.kt (редизайн с сегментированным вводом). -->
+                    <StackPanel Visibility="{Binding OtpSent, Converter={StaticResource BoolToVisibilityConverter}}"
+                                HorizontalAlignment="Center">
+                        <StackPanel Visibility="{Binding IsVerifySuccess, Converter={StaticResource InverseBoolToVisibilityConverter}}"
+                                    HorizontalAlignment="Center">
+                            <TextBlock Text="Код из письма" Style="{StaticResource MutedText}" Margin="0,0,0,10" HorizontalAlignment="Center"/>
+                            <controls:OtpInput x:Name="Otp" Code="{Binding Code, Mode=TwoWay}"
+                                                HasError="{Binding ErrorMessage, Converter={StaticResource NullToBoolConverter}}"
+                                                Margin="0,0,0,10"/>
+                            <TextBlock HorizontalAlignment="Center" FontSize="11" Foreground="{DynamicResource TextMutedBrush}">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Text" Value="Проверка запустится сама, как только введёшь все цифры"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsBusy}" Value="True">
+                                                <Setter Property="Text" Value="Проверяем…"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </StackPanel>
 
-                    <Button Content="← Другие способы входа" Style="{StaticResource LinkButton}" Command="{Binding ShowOAuthOptionsCommand}"/>
+                        <StackPanel Visibility="{Binding IsVerifySuccess, Converter={StaticResource BoolToVisibilityConverter}}"
+                                    HorizontalAlignment="Center" Margin="0,10,0,10">
+                            <Border Width="88" Height="88" CornerRadius="44" Background="{DynamicResource TealBrush}"
+                                    HorizontalAlignment="Center">
+                                <Border.Effect>
+                                    <DropShadowEffect Color="{DynamicResource TealColor}" ShadowDepth="0" BlurRadius="28" Opacity="0.7"/>
+                                </Border.Effect>
+                                <TextBlock Text="✓" FontSize="38" FontWeight="Black" Foreground="{DynamicResource SurfaceBrush}"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <TextBlock Text="Готово!" FontFamily="{StaticResource SpaceGroteskFamily}" FontWeight="SemiBold" FontSize="19"
+                                       Foreground="{DynamicResource TealBrush}" HorizontalAlignment="Center" Margin="0,14,0,4"/>
+                            <TextBlock Text="Почта подтверждена" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <Button Content="← Другие способы входа" Style="{StaticResource LinkButton}" Command="{Binding ShowOAuthOptionsCommand}"
+                            Margin="0,10,0,0"
+                            Visibility="{Binding OtpSent, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
                 </StackPanel>
 
                 <TextBlock Text="{Binding ErrorMessage}" Foreground="{DynamicResource DangerBrush}" FontSize="12"

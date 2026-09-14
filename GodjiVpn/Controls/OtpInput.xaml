@@ -1,0 +1,31 @@
+<UserControl x:Class="GodjiVpn.Controls.OtpInput"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Сегментированный ввод OTP-кода — 6 клеток вместо одного текстового поля, порт из
+         Android VerifyEmailScreen.kt (OtpCodeInput/DigitCell). Вся логика (автопереход фокуса,
+         Backspace на пустой клетке, вставка кода целиком, подсветка активной/заполненной/
+         ошибочной клетки) — в code-behind, см. OtpInput.xaml.cs. -->
+    <UserControl.Resources>
+        <Style x:Key="OtpCellStyle" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+            <Setter Property="Width" Value="44"/>
+            <Setter Property="Height" Value="52"/>
+            <Setter Property="Margin" Value="4,0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="MaxLength" Value="1"/>
+            <Setter Property="TextAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="FontFamily" Value="{StaticResource JetBrainsMonoFamily}"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="19"/>
+            <Setter Property="BorderThickness" Value="1.3"/>
+        </Style>
+    </UserControl.Resources>
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+        <TextBox x:Name="Cell0" Style="{StaticResource OtpCellStyle}"/>
+        <TextBox x:Name="Cell1" Style="{StaticResource OtpCellStyle}"/>
+        <TextBox x:Name="Cell2" Style="{StaticResource OtpCellStyle}"/>
+        <TextBox x:Name="Cell3" Style="{StaticResource OtpCellStyle}"/>
+        <TextBox x:Name="Cell4" Style="{StaticResource OtpCellStyle}"/>
+        <TextBox x:Name="Cell5" Style="{StaticResource OtpCellStyle}"/>
+    </StackPanel>
+</UserControl>

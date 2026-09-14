@@ -31,6 +31,9 @@ public sealed partial class LoginViewModel : ObservableObject
     [ObservableProperty] private bool isBusy;
     [ObservableProperty] private string? errorMessage;
     [ObservableProperty] private string? infoMessage;
+    /// <summary>Полноэкранный успех (галочка) после верного кода, перед переходом дальше —
+    /// см. VerifyAsync/LoginView.xaml. Порт из Android (VerifySuccessBadge).</summary>
+    [ObservableProperty] private bool isVerifySuccess;
 
     public LoginViewModel(ApiClient api, TokenStore tokenStore)
     {
@@ -74,6 +77,12 @@ public sealed partial class LoginViewModel : ObservableObject
 
     private bool CanSendOtp() => !IsBusy && Email.Contains('@');
 
+    /// <summary>Автопроверка сразу по вводу 6-й цифры (см. Controls/OtpInput.Completed,
+    /// подключено в LoginView.xaml.cs) — "It'll auto-verify once entered" из референса
+    /// редизайна. Явной кнопки "Войти" больше нет. При верном коде — короткий полноэкранный
+    /// успех (см. IsVerifySuccess), при неверном — код очищается (пустые клетки читаются как
+    /// явное приглашение ввести код ещё раз, а не как забытые чужие цифры поверх которых
+    /// печатать).</summary>
     [RelayCommand(CanExecute = nameof(CanVerify))]
     private async Task VerifyAsync()
     {
@@ -82,19 +91,19 @@ public sealed partial class LoginViewModel : ObservableObject
         try
         {
             var (_, token, refreshToken) = await _api.VerifyOtpAsync(Email.Trim(), Code.Trim());
+            IsVerifySuccess = true;
+            await Task.Delay(1300);
             await OnAuthenticatedAsync(token, refreshToken);
         }
         catch (Exception ex)
         {
             ErrorMessage = "Неверный код: " + ex.Message;
-        }
-        finally
-        {
+            Code = "";
             IsBusy = false;
         }
     }
 
-    private bool CanVerify() => !IsBusy && OtpSent && Code.Trim().Length > 0;
+    private bool CanVerify() => !IsBusy && OtpSent && Code.Trim().Length == 6;
 
     /// <summary>Вызывается при разлогине — экземпляр ViewModel переживает выход, см.
     /// MainViewModel.OnLoggedOut().</summary>
@@ -105,6 +114,7 @@ public sealed partial class LoginViewModel : ObservableObject
         Code = "";
         OtpSent = false;
         IsBusy = false;
+        IsVerifySuccess = false;
         ErrorMessage = null;
         InfoMessage = null;
     }
