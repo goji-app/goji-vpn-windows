@@ -24,6 +24,13 @@ public sealed partial class PingMethodItem : ObservableObject
     [ObservableProperty] private bool isSelected;
 }
 
+public sealed partial class ThemeModeItem : ObservableObject
+{
+    public required string Label { get; init; }
+    public required ThemeMode Mode { get; init; }
+    [ObservableProperty] private bool isSelected;
+}
+
 /// <summary>Аналог SettingsScreen.kt — версия/HWID (About), просмотр логов вместо отдельного
 /// LogViewerDialog.kt (здесь один экран проще нескольких диалогов на маленьком приложении),
 /// тёмная тема, выход из аккаунта. Переключение языка не перенесено — языковой слой (i18n) в
@@ -46,7 +53,6 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private LogFileItem selectedLogFile;
     [ObservableProperty] private string logContent = "";
     [ObservableProperty] private string pingTestUrl = "";
-    [ObservableProperty] private bool isDarkTheme;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasAvailableUpdate))]
@@ -77,6 +83,16 @@ public sealed partial class SettingsViewModel : ObservableObject
         new PingMethodItem { Label = "ICMP", Method = PingMethod.Icmp },
     };
 
+    /// <summary>Аналог ThemeMode (Android) — "Системная" следует теме Windows живьём, пока
+    /// приложение открыто (см. ThemeService.OnUserPreferenceChanged), а не только в момент
+    /// выбора.</summary>
+    public ObservableCollection<ThemeModeItem> ThemeModes { get; } = new()
+    {
+        new ThemeModeItem { Label = "Светлая", Mode = ThemeMode.Light },
+        new ThemeModeItem { Label = "Тёмная", Mode = ThemeMode.Dark },
+        new ThemeModeItem { Label = "Системная", Mode = ThemeMode.System },
+    };
+
     public event Action? RequestLogout;
 
     public SettingsViewModel(TokenStore tokenStore, VpnEngine vpnEngine, HwidProvider hwid, PingSettings pingSettings,
@@ -92,10 +108,15 @@ public sealed partial class SettingsViewModel : ObservableObject
         selectedLogFile.IsSelected = true;
         foreach (var m in PingMethods) m.IsSelected = m.Method == _pingSettings.Method;
         pingTestUrl = _pingSettings.TestUrl;
-        isDarkTheme = _theme.IsDark;
+        foreach (var m in ThemeModes) m.IsSelected = m.Mode == _theme.Mode;
     }
 
-    partial void OnIsDarkThemeChanged(bool value) => _theme.SetDark(value);
+    [RelayCommand]
+    private void SelectThemeMode(ThemeModeItem item)
+    {
+        foreach (var m in ThemeModes) m.IsSelected = m == item;
+        _theme.SetMode(item.Mode);
+    }
 
     public void Load()
     {
