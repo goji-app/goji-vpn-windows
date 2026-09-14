@@ -80,8 +80,35 @@ public sealed class SubscriptionRepository : INotifyPropertyChanged
         }
         catch (Exception ex)
         {
-            LastError = "Не удалось получить подписку: " + ex.Message;
-            return false;
+            // gojihub.xyz (наш шоп-бэкенд, откуда обычно приходит ссылка подписки) и
+            // subs.gojihub.xyz (сам Remnawave, куда она указывает) — два независимых хоста на
+            // разной инфраструктуре. Раньше недоступность ПЕРВОГО обрывала RefreshAsync целиком,
+            // даже не пытаясь дойти до второго — список серверов переставал обновляться, хотя
+            // сам Remnawave всё это время был доступен напрямую (тот же путь, что использует
+            // любой сторонний v2ray-клиент, которому эту ссылку один раз вставили вручную).
+            // Теперь при сбое здесь пробуем последнюю успешно закешированную ссылку и всё равно
+            // пытаемся обновить хотя бы список серверов — план/трафик тогда просто останутся
+            // прежними до восстановления gojihub.xyz.
+            var cachedLink = SubscriptionLinkCache.Load();
+            if (cachedLink == null)
+            {
+                LastError = "Не удалось получить подписку: " + ex.Message;
+                return false;
+            }
+
+            var (cachedNodes, _) = await SafeFetchNodesAsync(cachedLink);
+            if (cachedNodes.Count == 0)
+            {
+                LastError = "Не удалось получить подписку: " + ex.Message;
+                return false;
+            }
+
+            LastError = null;
+            _subscriptionNodes = cachedNodes;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Nodes)));
+            if (SelectedId == null || Nodes.All(n => n.Id != SelectedId))
+                SelectedId = cachedNodes[0].Id;
+            return true;
         }
 
         // Не завязано на наличие активной подписки — новости могут быть релевантны и до
@@ -114,6 +141,7 @@ public sealed class SubscriptionRepository : INotifyPropertyChanged
             return false;
         }
 
+        SubscriptionLinkCache.Save(active.SubscriptionLink);
         var (nodes, nodesError) = await SafeFetchNodesAsync(active.SubscriptionLink);
         // Пустой список = сбой получения (см. SafeFetchNodesAsync), а не "в подписке теперь
         // ноль узлов" — не затираем прежний непустой список при временном сбое сети, иначе

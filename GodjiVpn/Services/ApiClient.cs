@@ -21,6 +21,13 @@ public sealed class ApiClient
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     private readonly HttpClient _http;
+    // Запасной путь БЕЗ прокси — см. SendWithRefreshAsync: если запрос через туннель падает на
+    // уровне соединения (проблема на конкретном exit-узле, а не в самом бэкенде), собственные
+    // API-запросы приложения раньше только ждали следующего RefreshAsync, полностью блокируясь
+    // временной проблемой узла. Порт "secondary fallback in tunnelAwareProxySelector" из Android
+    // (GodjiVpnService.kt) — там это один ProxySelector с несколькими вариантами, тут — второй
+    // HttpClient, потому что System.Net.IWebProxy умеет отдать только один адрес на запрос.
+    private readonly HttpClient _directHttp;
     private readonly TokenStore _tokenStore;
 
     public ApiClient(TokenStore tokenStore)
@@ -41,6 +48,7 @@ public sealed class ApiClient
             UseCookies = false
         };
         _http = new HttpClient(handler) { BaseAddress = new Uri(BaseUrl) };
+        _directHttp = new HttpClient(new SocketsHttpHandler { UseProxy = false, UseCookies = false }) { BaseAddress = new Uri(BaseUrl) };
         // Дефолтный User-Agent у HttpClient пустой (System.Net.Http без явного значения ничего
         // не шлёт) — заменяем на честный "имя приложения/версия (ОС)", как у обычного
         // десктоп-клиента, а не как у SubscriptionService (там User-Agent намеренно подделан
@@ -48,8 +56,11 @@ public sealed class ApiClient
         // не трогаем его здесь).
         var version = Assembly.GetExecutingAssembly().GetName().Version;
         var versionText = version != null ? $"{version.Major}.{version.Minor}.{version.Build}" : "0.0.0";
-        _http.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("GodjiVPN-Windows", versionText));
-        _http.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue($"({RuntimeInformation.OSDescription})"));
+        foreach (var client in new[] { _http, _directHttp })
+        {
+            client.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("GodjiVPN-Windows", versionText));
+            client.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue($"({RuntimeInformation.OSDescription})"));
+        }
     }
 
     public async Task<SendOtpResponse> SendOtpAsync(string email, CancellationToken ct = default) =>
@@ -160,11 +171,10 @@ public sealed class ApiClient
     /// переиспользовать повторно после отправки), а фабрика, пересобирающая тот же запрос.</summary>
     private async Task<HttpResponseMessage> SendWithRefreshAsync(Func<HttpRequestMessage> requestFactory, CancellationToken ct)
     {
-        using var request = requestFactory();
-        PrepareRequest(request);
-        var response = await _http.SendAsync(request, ct).ConfigureAwait(false);
+        var response = await SendWithDirectFallbackAsync(requestFactory, ct).ConfigureAwait(false);
 
-        var isAuthEndpoint = request.RequestUri!.AbsolutePath.Contains("/api/auth/", StringComparison.Ordinal);
+        bool isAuthEndpoint;
+        using (var probe = requestFactory()) isAuthEndpoint = probe.RequestUri!.AbsolutePath.Contains("/api/auth/", StringComparison.Ordinal);
         if (response.StatusCode != HttpStatusCode.Unauthorized || isAuthEndpoint || _tokenStore.RefreshToken is not { } refreshToken)
             return response;
 
@@ -172,9 +182,30 @@ public sealed class ApiClient
             return response; // не получилось обновить — отдаём исходный 401 как есть
 
         response.Dispose();
-        using var retryRequest = requestFactory();
-        PrepareRequest(retryRequest); // подхватит уже обновлённый _tokenStore.AccessToken
-        return await _http.SendAsync(retryRequest, ct).ConfigureAwait(false);
+        return await SendWithDirectFallbackAsync(requestFactory, ct).ConfigureAwait(false); // подхватит уже обновлённый _tokenStore.AccessToken
+    }
+
+    /// <summary>Порт "secondary fallback in tunnelAwareProxySelector" из Android
+    /// (GodjiVpnService.kt): пока туннель поднят, собственные запросы приложения идут через
+    /// локальный SOCKS xray (см. TunnelAwareProxy), но если ИМЕННО соединение падает (проблема
+    /// на конкретном exit-узле — HttpRequestException, а не обычная ошибка HTTP-статуса из
+    /// самого бэкенда), пробуем тот же запрос напрямую, а не блокируем всю функциональность API
+    /// до следующего переподключения. Если туннель не поднят — TunnelAwareProxy и так уже отдал
+    /// null (прямое соединение), второй попытки не будет: тот же результат гарантирован.</summary>
+    private async Task<HttpResponseMessage> SendWithDirectFallbackAsync(Func<HttpRequestMessage> requestFactory, CancellationToken ct)
+    {
+        using var request = requestFactory();
+        PrepareRequest(request);
+        try
+        {
+            return await _http.SendAsync(request, ct).ConfigureAwait(false);
+        }
+        catch (HttpRequestException) when (VpnEngine.Current?.IsRunning == true)
+        {
+            using var directRequest = requestFactory();
+            PrepareRequest(directRequest);
+            return await _directHttp.SendAsync(directRequest, ct).ConfigureAwait(false);
+        }
     }
 
     /// <summary>Без Authorization (сессия уже мертва) — только Cookie с refresh-токеном, как у
