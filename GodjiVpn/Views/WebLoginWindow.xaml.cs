@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Threading;
 using GodjiVpn.Services;
 
 namespace GodjiVpn.Views;
@@ -15,6 +16,7 @@ public partial class WebLoginWindow : Window
     private const string RefreshCookieName = "rw_refresh_token";
 
     private bool _handled;
+    private DispatcherTimer? _cookiePollTimer;
 
     public string? SessionToken { get; private set; }
 
@@ -52,11 +54,25 @@ public partial class WebLoginWindow : Window
             await CheckForSessionCookieAsync();
         };
         Web.CoreWebView2.Navigate(SiteUrl);
+
+        // Сайт — SPA: после входа (email/Google/Яндекс/Telegram) кука обычно выставляется
+        // JS-кодом по факту успешного запроса, без полной навигации страницы (history.pushState/
+        // обновление состояния внутри той же страницы) — NavigationCompleted в таком случае
+        // просто не срабатывает повторно, и проверка выше никогда не узнаёт об успешном входе
+        // (реальная жалоба пользователя: "авторизуется на самом сайте, а в приложение не
+        // переходит"). Поэтому вдобавок опрашиваем куку по таймеру, пока окно открыто — не
+        // самое элегантное решение, но надёжно работает независимо от того, как именно сайт
+        // сигнализирует об входе на своей стороне.
+        _cookiePollTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(800) };
+        _cookiePollTimer.Tick += async (_, _) => await CheckForSessionCookieAsync();
+        _cookiePollTimer.Start();
+        Closed += (_, _) => _cookiePollTimer?.Stop();
     }
 
     /// <summary>Кука выставляется сайтом сразу после успешного входа (любым способом — Google/
     /// Яндекс/Telegram/email, что выберет сам пользователь на открывшейся странице), не привязана
-    /// к конкретному переходу — поэтому проверяем после КАЖДОЙ навигации, а не только один раз.</summary>
+    /// к конкретному переходу — поэтому проверяем и после каждой навигации, и по таймеру (см.
+    /// InitializeAsync) на случай, если сайт вообще не делает полную навигацию после входа.</summary>
     private async Task CheckForSessionCookieAsync()
     {
         if (_handled) return;
