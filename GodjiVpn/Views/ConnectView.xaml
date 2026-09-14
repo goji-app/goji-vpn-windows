@@ -154,7 +154,7 @@
                         <ColumnDefinition Width="9"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="16" Padding="13">
+                    <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="24" Padding="13">
                         <StackPanel>
                             <TextBlock Text="СКАЧИВАНИЕ" FontFamily="{StaticResource ManropeExtraBoldFamily}" FontSize="9.5" Foreground="{DynamicResource TextMutedBrush}"/>
                             <TextBlock FontFamily="{StaticResource ManropeExtraBoldFamily}" FontSize="17" Foreground="{DynamicResource TealBrush}" Margin="0,3,0,0">
@@ -162,7 +162,7 @@
                             </TextBlock>
                         </StackPanel>
                     </Border>
-                    <Border Grid.Column="2" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="16" Padding="13">
+                    <Border Grid.Column="2" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="24" Padding="13">
                         <StackPanel>
                             <TextBlock Text="ОТДАЧА" FontFamily="{StaticResource ManropeExtraBoldFamily}" FontSize="9.5" Foreground="{DynamicResource TextMutedBrush}"/>
                             <TextBlock FontFamily="{StaticResource ManropeExtraBoldFamily}" FontSize="17" Foreground="{DynamicResource TerracottaBrush}" Margin="0,3,0,0">
@@ -173,7 +173,7 @@
                 </Grid>
 
                 <!-- Текущий узел -->
-                <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="16" Padding="11" Margin="0,0,0,11">
+                <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="24" Padding="11" Margin="0,0,0,11">
                     <StackPanel Orientation="Horizontal">
                         <Border Width="36" Height="36" Background="{DynamicResource ChipBrush}" CornerRadius="10" ClipToBounds="True">
                             <Grid>
@@ -198,7 +198,7 @@
 
                 <!-- Трафик -->
                 <Border Background="{DynamicResource ChipBrush}" BorderBrush="{DynamicResource CardBorderStrongBrush}" BorderThickness="1"
-                        CornerRadius="16" Padding="13" Style="{StaticResource PressScaleBorder}"
+                        CornerRadius="24" Padding="13" Style="{StaticResource PressScaleBorder}"
                         MouseLeftButtonUp="OnTrafficClick">
                     <StackPanel>
                         <Grid>

@@ -60,7 +60,7 @@
         </Grid>
 
         <!-- Баннер-результат ручного "Обновить" -->
-        <Border Grid.Row="1" Margin="0,0,0,10" CornerRadius="12" Padding="10,7" BorderThickness="1"
+        <Border Grid.Row="1" Margin="0,0,0,10" CornerRadius="24" Padding="10,7" BorderThickness="1"
                 Visibility="{Binding RefreshResultMessage, Converter={StaticResource NullToVisibilityConverter}}">
             <Border.Style>
                 <Style TargetType="Border">
@@ -68,8 +68,8 @@
                     <Setter Property="BorderBrush" Value="{DynamicResource TealTintBorderBrush}"/>
                     <Style.Triggers>
                         <DataTrigger Binding="{Binding RefreshResultIsError}" Value="True">
-                            <Setter Property="Background" Value="#F7E2D8"/>
-                            <Setter Property="BorderBrush" Value="#E4B49B"/>
+                            <Setter Property="Background" Value="{DynamicResource JamBgBrush}"/>
+                            <Setter Property="BorderBrush" Value="{DynamicResource JamBorderBrush}"/>
                         </DataTrigger>
                     </Style.Triggers>
                 </Style>

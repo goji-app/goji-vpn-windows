@@ -115,9 +115,15 @@
                 <Setter Property="Template">
                     <Setter.Value>
                         <ControlTemplate TargetType="Button">
+                            <!-- CornerRadius=999 — WPF сам ограничивает радиус угла половиной
+                                 меньшей стороны Border, так что при любой реальной высоте кнопки
+                                 (44/54/38 и т.д.) это всегда даёт полную "pill"-форму (редизайн
+                                 Tactical Sand & Void: "shape = RoundedCornerShape(50)" в Compose
+                                 — процентный аналог того же самого), а не фиксированный
+                                 скруглённый прямоугольник на 14. -->
                             <Border x:Name="Bd" Background="{TemplateBinding Background}"
                                     BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
-                                    CornerRadius="14">
+                                    CornerRadius="999">
                                 <!-- Content обычно задаётся простой строкой ("Включить", "Продолжить через
                                      Google" и т.п.) — WPF заворачивает такую строку в свой собственный
                                      TextBlock. У этого TextBlock нет явного Style, поэтому он подхватывает
@@ -354,7 +360,7 @@
                     <Setter.Value>
                         <ControlTemplate TargetType="ToggleButton">
                             <Border x:Name="Track" Width="46" Height="26" CornerRadius="13"
-                                    Background="{DynamicResource ButtonBorderBrush}">
+                                    Background="{DynamicResource TrackBgBrush}">
                                 <Border x:Name="Thumb" Width="20" Height="20" CornerRadius="10"
                                         Background="{DynamicResource SurfaceBrush}"
                                         HorizontalAlignment="Left" Margin="3,0,0,0">

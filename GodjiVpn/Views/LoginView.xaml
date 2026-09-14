@@ -32,7 +32,7 @@
 
                 <!-- "Впервые здесь?" -->
                 <Border Background="{DynamicResource ChipBrush}" BorderBrush="{DynamicResource CardBorderStrongBrush}" BorderThickness="1"
-                        CornerRadius="14" Padding="12" Margin="0,0,0,14" Style="{StaticResource PressScaleBorder}"
+                        CornerRadius="24" Padding="12" Margin="0,0,0,14" Style="{StaticResource PressScaleBorder}"
                         MouseLeftButtonUp="OnBotBannerClick">
                     <Grid>
                         <Grid.ColumnDefinitions>

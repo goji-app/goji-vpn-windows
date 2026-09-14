@@ -10,7 +10,7 @@
 
                 <!-- Внешний вид -->
                 <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource InkBrush}"
-                        BorderThickness="1.5" CornerRadius="20" Padding="16" Margin="0,0,0,14">
+                        BorderThickness="1.5" CornerRadius="24" Padding="16" Margin="0,0,0,14">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
@@ -24,7 +24,7 @@
 
                 <!-- О приложении -->
                 <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource InkBrush}"
-                        BorderThickness="1.5" CornerRadius="20" Padding="16" Margin="0,0,0,14">
+                        BorderThickness="1.5" CornerRadius="24" Padding="16" Margin="0,0,0,14">
                     <StackPanel>
                         <TextBlock Text="О приложении" FontFamily="{StaticResource ManropeSemiBoldFamily}" FontSize="14" Margin="0,0,0,10"/>
                         <Grid Margin="0,0,0,8">
@@ -51,7 +51,7 @@
                 <!-- Обновления — проверка через GitHub Releases (api.github.com), скачивание и
                      запуск установщика прямо из приложения (см. Services/UpdateService.cs). -->
                 <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource InkBrush}"
-                        BorderThickness="1.5" CornerRadius="20" Padding="16" Margin="0,0,0,14">
+                        BorderThickness="1.5" CornerRadius="24" Padding="16" Margin="0,0,0,14">
                     <StackPanel>
                         <Grid Margin="0,0,0,4">
                             <Grid.ColumnDefinitions>
@@ -101,7 +101,7 @@
 
                 <!-- Проверка серверов -->
                 <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource InkBrush}"
-                        BorderThickness="1.5" CornerRadius="20" Padding="16" Margin="0,0,0,14">
+                        BorderThickness="1.5" CornerRadius="24" Padding="16" Margin="0,0,0,14">
                     <StackPanel>
                         <TextBlock Text="Проверка серверов" FontFamily="{StaticResource ManropeSemiBoldFamily}" FontSize="14" Margin="0,0,0,10"/>
 
@@ -156,7 +156,7 @@
 
                 <!-- Логи -->
                 <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource InkBrush}"
-                        BorderThickness="1.5" CornerRadius="20" Padding="16" Margin="0,0,0,14">
+                        BorderThickness="1.5" CornerRadius="24" Padding="16" Margin="0,0,0,14">
                     <StackPanel>
                         <Grid Margin="0,0,0,10">
                             <Grid.ColumnDefinitions>

@@ -33,7 +33,7 @@
 
                 <!-- Текущий тариф -->
                 <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource InkBrush}"
-                        BorderThickness="1.5" CornerRadius="20" Padding="16" Margin="0,0,0,14">
+                        BorderThickness="1.5" CornerRadius="24" Padding="16" Margin="0,0,0,14">
                     <StackPanel>
                         <Grid>
                             <Grid.ColumnDefinitions>
@@ -100,7 +100,7 @@
                 <ItemsControl ItemsSource="{Binding Plans}" Margin="0,0,0,14">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Border CornerRadius="18" Padding="14" Margin="0,0,0,8" BorderThickness="1.5">
+                            <Border CornerRadius="24" Padding="14" Margin="0,0,0,8" BorderThickness="1.5">
                                 <Border.Style>
                                     <Style TargetType="Border">
                                         <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
@@ -143,7 +143,7 @@
                 <StackPanel Visibility="{Binding HasTrafficHistory, Converter={StaticResource BoolToVisibilityConverter}}" Margin="0,0,0,14">
                     <TextBlock Text="Расход трафика" FontFamily="{StaticResource SpaceGroteskFamily}" FontWeight="Medium" FontSize="19" Margin="0,0,0,8"/>
                     <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource InkBrush}"
-                            BorderThickness="1.5" CornerRadius="20" Padding="16">
+                            BorderThickness="1.5" CornerRadius="24" Padding="16">
                         <StackPanel>
                             <ItemsControl ItemsSource="{Binding TrafficHistory}" Margin="0,0,0,10">
                                 <ItemsControl.ItemsPanel>
@@ -205,7 +205,7 @@
                 <StackPanel Visibility="{Binding HasDevices, Converter={StaticResource BoolToVisibilityConverter}}" Margin="0,0,0,14">
                     <TextBlock Text="Устройства" FontFamily="{StaticResource SpaceGroteskFamily}" FontWeight="Medium" FontSize="19" Margin="0,0,0,8"/>
                     <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource InkBrush}"
-                            BorderThickness="1.5" CornerRadius="20" Padding="16">
+                            BorderThickness="1.5" CornerRadius="24" Padding="16">
                         <StackPanel>
                             <TextBlock Text="Нет подключённых устройств" FontFamily="{StaticResource ManropeMediumFamily}" FontSize="11"
                                        Foreground="{DynamicResource TextMutedBrush}"
@@ -298,7 +298,7 @@
                     </Border>
 
                     <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource InkBrush}"
-                            BorderThickness="1.5" CornerRadius="20" Padding="16" Margin="0,0,0,8"
+                            BorderThickness="1.5" CornerRadius="24" Padding="16" Margin="0,0,0,8"
                             Visibility="{Binding ShowReferralCard, Converter={StaticResource BoolToVisibilityConverter}}">
                         <StackPanel>
                             <Border Background="{DynamicResource ChipBrush}" CornerRadius="12" Padding="12" Margin="0,0,0,12"
@@ -392,7 +392,7 @@
                          средств делаются на сайте (та же логика, что и "Продлить" для тарифов —
                          не переизобретаем денежные формы нативно). -->
                     <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource InkBrush}"
-                            BorderThickness="1.5" CornerRadius="20" Padding="16"
+                            BorderThickness="1.5" CornerRadius="24" Padding="16"
                             Visibility="{Binding ShowPartnerCard, Converter={StaticResource BoolToVisibilityConverter}}">
                         <StackPanel>
                             <TextBlock Text="Партнёрский аккаунт деактивирован" FontFamily="{StaticResource ManropeMediumFamily}" FontSize="11.5"
@@ -473,7 +473,7 @@
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
                                 <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource CardBorderBrush}"
-                                        BorderThickness="1.5" CornerRadius="18" Padding="14" Margin="0,0,0,8">
+                                        BorderThickness="1.5" CornerRadius="24" Padding="14" Margin="0,0,0,8">
                                     <StackPanel>
                                         <TextBlock Text="{Binding DateLabel}" FontFamily="{StaticResource ManropeExtraBoldFamily}"
                                                    FontSize="9.5" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,6"/>
@@ -522,7 +522,7 @@
 
                 <!-- Поддержка -->
                 <Border Background="{DynamicResource TerracottaTintBrush}" BorderBrush="{DynamicResource TerracottaTintBorderBrush}"
-                        BorderThickness="1" CornerRadius="16" Padding="14" Margin="0,0,0,14"
+                        BorderThickness="1" CornerRadius="24" Padding="14" Margin="0,0,0,14"
                         Style="{StaticResource PressScaleBorder}" MouseLeftButtonUp="OnSupportClick">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="✉️" FontSize="18" VerticalAlignment="Center"/>
