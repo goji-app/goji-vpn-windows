@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.Windows;
 using System.Windows.Documents;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -102,6 +103,25 @@ public sealed partial class DeviceItem : ObservableObject
     public string Subtitle => string.Join(" · ", new[] { Platform, CreatedAtLabel }.Where(s => !string.IsNullOrEmpty(s)));
 }
 
+/// <summary>Один столбик графика "Расход трафика" за последние 7 дней (см.
+/// TrafficHistoryRepository.DailyUsageLast). BarHeight — уже готовая высота в пикселях (максимум
+/// 48, минимум видимая полоска в 0.03 от максимума за неделю у дней с HasData) — считается один
+/// раз при построении списка в PlansViewModel.LoadAsync, а не биндингом с конвертером, чтобы не
+/// пересчитывать максимум недели в разметке.</summary>
+public sealed class TrafficDayItem
+{
+    private const double MaxBarHeight = 48;
+
+    public required string DayLabel { get; init; }
+    public required bool IsToday { get; init; }
+    public required bool HasData { get; init; }
+    public required long Bytes { get; init; }
+    public required double Fraction { get; init; }
+
+    public string GbLabel => HasData ? (Bytes / 1_000_000_000.0).ToString("0.0") : "";
+    public double BarHeight => HasData ? Math.Max(Fraction, 0.03) * MaxBarHeight : 0;
+}
+
 public sealed partial class PeriodItem : ObservableObject
 {
     public required int Months { get; init; }
@@ -156,6 +176,7 @@ public sealed partial class PlansViewModel : ObservableObject
 
     private readonly ApiClient _api;
     private readonly SubscriptionRepository _subscription;
+    private readonly TrafficHistoryRepository _trafficHistory;
 
     private List<PlanInfo> _rawPlans = new();
     private List<NewsItem> _allNews = new();
@@ -225,6 +246,10 @@ public sealed partial class PlansViewModel : ObservableObject
     public ObservableCollection<PeriodItem> Periods { get; } = new();
     public ObservableCollection<PlanItem> Plans { get; } = new();
     public ObservableCollection<DeviceItem> Devices { get; } = new();
+    public ObservableCollection<TrafficDayItem> TrafficHistory { get; } = new();
+    public bool HasTrafficHistory => TrafficHistory.Any(d => d.HasData);
+    public string TrafficTodayLabel =>
+        $"Сегодня: {(TrafficHistory.FirstOrDefault(d => d.IsToday)?.Bytes ?? 0) / 1_000_000_000.0:0.00} ГБ";
 
     /// <summary>То, что реально показывает XAML — свёрнутый список (2 последние) или текущая
     /// страница (3 на страницу), в зависимости от IsNewsExpanded. См. RefreshVisibleNews.</summary>
@@ -236,10 +261,11 @@ public sealed partial class PlansViewModel : ObservableObject
     public string NewsToggleLabel => IsNewsExpanded ? "Свернуть" : "Показать все новости";
     public string NewsPageLabel => $"Страница {NewsPageIndex + 1} из {NewsTotalPages}";
 
-    public PlansViewModel(ApiClient api, SubscriptionRepository subscription)
+    public PlansViewModel(ApiClient api, SubscriptionRepository subscription, TrafficHistoryRepository trafficHistory)
     {
         _api = api;
         _subscription = subscription;
+        _trafficHistory = trafficHistory;
     }
 
     public async Task LoadAsync()
@@ -265,6 +291,8 @@ public sealed partial class PlansViewModel : ObservableObject
             }
             catch { /* устройства — вспомогательная секция, не критична для остального экрана */ }
         }
+
+        LoadTrafficHistory();
 
         // Свежая по CreatedAt первая — порядок с бэкенда не гарантирован (см. BroadcastNotifier).
         _allNews = _subscription.Broadcasts.OrderByDescending(b => b.CreatedAt).Select(b =>
@@ -355,6 +383,33 @@ public sealed partial class PlansViewModel : ObservableObject
         Platform = d.Platform,
         CreatedAtLabel = d.CreatedAt is { } ca ? DateFormat.FormatDate(ca) : null
     };
+
+    private static readonly CultureInfo RuCulture = CultureInfo.GetCultureInfo("ru-RU");
+
+    /// <summary>Порт TrafficHistorySection (Android PlansScreen.kt) — 7 столбиков, максимум
+    /// считается только по дням с HasData (см. TrafficDayItem/TrafficDayUsage), чтобы "дыры" до
+    /// начала локального отслеживания не занижали масштаб графика.</summary>
+    private void LoadTrafficHistory()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        var usage = _trafficHistory.DailyUsageLast(7);
+        var maxBytes = Math.Max(usage.Where(u => u.HasData).Select(u => u.Bytes).DefaultIfEmpty(0L).Max(), 1L);
+
+        TrafficHistory.Clear();
+        foreach (var day in usage)
+        {
+            TrafficHistory.Add(new TrafficDayItem
+            {
+                DayLabel = RuCulture.DateTimeFormat.AbbreviatedDayNames[(int)day.Date.DayOfWeek],
+                IsToday = day.Date == today,
+                HasData = day.HasData,
+                Bytes = day.Bytes,
+                Fraction = day.Bytes / (double)maxBytes
+            });
+        }
+        OnPropertyChanged(nameof(HasTrafficHistory));
+        OnPropertyChanged(nameof(TrafficTodayLabel));
+    }
 
     [RelayCommand]
     private async Task RenameDeviceAsync(DeviceItem device)
