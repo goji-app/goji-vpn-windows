@@ -23,9 +23,14 @@ const HOME = { lat: 55.75, lon: 37.62 };
 // сам globe.html (см. GlobeHost.xaml.cs → SetVirtualHostNameToFolderMapping).
 const ATLAS = './vendor/countries-110m.json';
 
+// grid — с редизайна Tactical Sand & Void это отдельный холодный "wire"-cyan (тот же тон, что
+// GodjiColors.Purple/PurpleBrush), а не land/grid тон, как раньше — по референсу Stitch (Three.js
+// wireframe 0x00d2ff). Плотность самой сетки (SphereGeometry(R*1.001, 24, 12) ниже) уже даёт шаг
+// 15° по обеим осям "из коробки" — то, ради чего Android увеличивал шаг вручную (30°→15°) в своём
+// GLES-рендере, здесь не требуется отдельно менять.
 const THEMES = {
-  dark: { ocean: 0x0a201d, oceanOp: 0.9, land: 0x2f6f66, landOp: 0.75, grid: 0x00d4c4, gridOp: 0.07, hi: 0x00e7d4, arc: 0x00e7d4, home: 0x8b7cf6, atmo: 0x00d4c4, dot: 0x4a625d, labelBg: 'rgba(10,20,18,.82)', labelFg: '#EAF4F2', labelBd: 'rgba(0,231,212,.45)' },
-  light: { ocean: 0xe7e0cf, oceanOp: 1, land: 0x0f4d45, landOp: 0.55, grid: 0x0f4d45, gridOp: 0.06, hi: 0x00897e, arc: 0xd9714b, home: 0xd9714b, atmo: 0x00a79b, dot: 0xa9a08a, labelBg: 'rgba(255,253,247,.94)', labelFg: '#12312C', labelBd: 'rgba(0,167,155,.5)' }
+  dark: { ocean: 0x0a201d, oceanOp: 0.9, land: 0x2f6f66, landOp: 0.75, grid: 0x00d2ff, gridOp: 0.11, hi: 0x00e7d4, arc: 0x00e7d4, home: 0x8b7cf6, atmo: 0x00d4c4, dot: 0x4a625d, labelBg: 'rgba(10,20,18,.82)', labelFg: '#EAF4F2', labelBd: 'rgba(0,231,212,.45)' },
+  light: { ocean: 0xe7e0cf, oceanOp: 1, land: 0x0f4d45, landOp: 0.55, grid: 0x00838f, gridOp: 0.1, hi: 0x00897e, arc: 0xd9714b, home: 0xd9714b, atmo: 0x00a79b, dot: 0xa9a08a, labelBg: 'rgba(255,253,247,.94)', labelFg: '#12312C', labelBd: 'rgba(0,167,155,.5)' }
 };
 
 let atlasPromise = null;

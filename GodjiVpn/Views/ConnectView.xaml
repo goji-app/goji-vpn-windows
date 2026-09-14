@@ -21,6 +21,30 @@
                 <Border Height="230" CornerRadius="24" Background="{DynamicResource SurfaceBrush}"
                         BorderBrush="{DynamicResource CardBorderStrongBrush}" BorderThickness="1" Margin="0,0,0,11"
                         ClipToBounds="True">
+                    <!-- Цветное тизнение вокруг карточки глобуса (редизайн Tactical Sand &
+                         Void — "shadow-[0_0_50px_rgba(0,245,160,.12)]" вокруг контейнера в
+                         Stitch-референсе), усиливается при подключении. ClipToBounds выше режет
+                         только ДЕТЕЙ Border по его геометрии — на Effect самого Border (рисуется
+                         отдельным проходом поверх/вокруг итогового изображения элемента) это не
+                         влияет, тень по-прежнему видна за пределами карточки. -->
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Effect">
+                                <Setter.Value>
+                                    <DropShadowEffect Color="{DynamicResource TealColor}" ShadowDepth="0" BlurRadius="30" Opacity="0.12"/>
+                                </Setter.Value>
+                            </Setter>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsConnected}" Value="True">
+                                    <Setter Property="Effect">
+                                        <Setter.Value>
+                                            <DropShadowEffect Color="{DynamicResource TealColor}" ShadowDepth="0" BlurRadius="45" Opacity="0.3"/>
+                                        </Setter.Value>
+                                    </Setter>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
                     <Grid>
                         <controls:GlobeHost x:Name="Globe"/>
                         <StackPanel HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,14,16,0"

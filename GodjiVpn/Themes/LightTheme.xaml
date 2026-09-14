@@ -13,6 +13,9 @@
     <SolidColorBrush x:Key="TextSecondaryBrush" Color="#4E5D59"/>
     <SolidColorBrush x:Key="TextMutedBrush" Color="#7B8A85"/>
     <SolidColorBrush x:Key="TealBrush" Color="#00875A"/>
+    <!-- Не Brush — для DropShadowEffect.Color (GlobeCard в ConnectView.xaml), тому нужен именно
+         Color, не Brush. Тот же тон, что TealBrush, отдельный ключ только из-за типа. -->
+    <Color x:Key="TealColor">#00875A</Color>
     <SolidColorBrush x:Key="TealDeepBrush" Color="#005235"/>
     <SolidColorBrush x:Key="TealTintBrush" Color="#E3F2EA"/>
     <SolidColorBrush x:Key="TealTintBorderBrush" Color="#B8DECB"/>
