@@ -1,5 +1,8 @@
-# This workflow will build a .NET project
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-net
+# GodjiVpn.csproj таргетит net8.0-windows10.0.19041.0 с UseWPF=true — чисто Windows-технология,
+# на ubuntu-latest (дефолтный шаблон GitHub при создании репозитория) собраться в принципе не
+# может ("set the EnableWindowsTargeting property to true" — это про cross-target reference
+# assemblies, не про реальный запуск, WPF на Linux не запустится в любом случае). Тестового
+# проекта в решении нет — шаг Test убран, а не оставлен как no-op.
 
 name: .NET
 
@@ -12,7 +15,7 @@ on:
 jobs:
   build:
 
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
 
     steps:
     - uses: actions/checkout@v4
@@ -23,6 +26,4 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore
     - name: Build
-      run: dotnet build --no-restore
-    - name: Test
-      run: dotnet test --no-build --verbosity normal
+      run: dotnet build --no-restore -c Release
