@@ -59,18 +59,16 @@ public sealed class ApiClient
     /// (rw_session_token), не в теле — см. комментарий у VerifyOtpResponse. Поэтому не обычный
     /// PostAsync (тот отдаёт только десериализованное тело), а раздельно тело + токен из
     /// заголовков ответа.</summary>
-    public async Task<(VerifyOtpResponse Body, string Token)> VerifyOtpAsync(string email, string code, CancellationToken ct = default)
+    public async Task<(VerifyOtpResponse Body, string Token, string? RefreshToken)> VerifyOtpAsync(string email, string code, CancellationToken ct = default)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Post, "api/auth/email/verify-otp")
+        using var response = await SendWithRefreshAsync(() => new HttpRequestMessage(HttpMethod.Post, "api/auth/email/verify-otp")
         {
             Content = JsonContent.Create(new VerifyOtpRequest { Email = email, Code = code }, options: JsonOptions)
-        };
-        PrepareRequest(request);
-        using var response = await _http.SendAsync(request, ct).ConfigureAwait(false);
+        }, ct).ConfigureAwait(false);
         var body = await ReadOrThrowAsync<VerifyOtpResponse>(response, ct).ConfigureAwait(false);
         var token = ExtractCookieValue(response, "rw_session_token")
             ?? throw new InvalidOperationException("В ответе нет куки rw_session_token");
-        return (body, token);
+        return (body, token, ExtractCookieValue(response, "rw_refresh_token"));
     }
 
     public async Task<MeResponse> GetMeAsync(CancellationToken ct = default) =>
@@ -110,39 +108,32 @@ public sealed class ApiClient
 
     public async Task RenameDeviceAsync(long subscriptionId, string hwid, string readableName, CancellationToken ct = default)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Patch, $"api/subscriptions/{subscriptionId}/devices/{hwid}")
+        using var response = await SendWithRefreshAsync(() => new HttpRequestMessage(HttpMethod.Patch, $"api/subscriptions/{subscriptionId}/devices/{hwid}")
         {
             Content = JsonContent.Create(new RenameDeviceRequest { ReadableName = readableName }, options: JsonOptions)
-        };
-        PrepareRequest(request);
-        using var response = await _http.SendAsync(request, ct).ConfigureAwait(false);
+        }, ct).ConfigureAwait(false);
         await ReadOrThrowAsync<object?>(response, ct).ConfigureAwait(false);
     }
 
     public async Task DeleteDeviceAsync(long subscriptionId, string hwid, CancellationToken ct = default)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Delete, $"api/subscriptions/{subscriptionId}/devices/{hwid}");
-        PrepareRequest(request);
-        using var response = await _http.SendAsync(request, ct).ConfigureAwait(false);
+        using var response = await SendWithRefreshAsync(
+            () => new HttpRequestMessage(HttpMethod.Delete, $"api/subscriptions/{subscriptionId}/devices/{hwid}"), ct).ConfigureAwait(false);
         await ReadOrThrowAsync<object?>(response, ct).ConfigureAwait(false);
     }
 
     private async Task<TResponse> GetAsync<TResponse>(string path, CancellationToken ct)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Get, path);
-        PrepareRequest(request);
-        using var response = await _http.SendAsync(request, ct).ConfigureAwait(false);
+        using var response = await SendWithRefreshAsync(() => new HttpRequestMessage(HttpMethod.Get, path), ct).ConfigureAwait(false);
         return await ReadOrThrowAsync<TResponse>(response, ct).ConfigureAwait(false);
     }
 
     private async Task<TResponse> PostAsync<TBody, TResponse>(string path, TBody body, CancellationToken ct)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Post, path)
+        using var response = await SendWithRefreshAsync(() => new HttpRequestMessage(HttpMethod.Post, path)
         {
             Content = JsonContent.Create(body, options: JsonOptions)
-        };
-        PrepareRequest(request);
-        using var response = await _http.SendAsync(request, ct).ConfigureAwait(false);
+        }, ct).ConfigureAwait(false);
         return await ReadOrThrowAsync<TResponse>(response, ct).ConfigureAwait(false);
     }
 
@@ -158,6 +149,61 @@ public sealed class ApiClient
         if (!string.IsNullOrEmpty(token))
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         request.Headers.Add("X-Requested-With", "XMLHttpRequest");
+    }
+
+    /// <summary>Сессионный JWT бэкенда живёт ровно 24 часа — без обновления пользователя
+    /// стабильно выкидывало на логин раз в сутки (жалоба пользователя). Аналог
+    /// TokenAuthenticator в Android NetworkModule.kt: на 401 (кроме самих auth-эндпоинтов —
+    /// неверный OTP-код тоже может прийти как 401, но это не протухшая сессия) пытаемся
+    /// продлить сессию через POST api/auth/refresh по rw_refresh_token и повторяем запрос ОДИН
+    /// раз с уже новым токеном. requestFactory — не HttpRequestMessage напрямую (его нельзя
+    /// переиспользовать повторно после отправки), а фабрика, пересобирающая тот же запрос.</summary>
+    private async Task<HttpResponseMessage> SendWithRefreshAsync(Func<HttpRequestMessage> requestFactory, CancellationToken ct)
+    {
+        using var request = requestFactory();
+        PrepareRequest(request);
+        var response = await _http.SendAsync(request, ct).ConfigureAwait(false);
+
+        var isAuthEndpoint = request.RequestUri!.AbsolutePath.Contains("/api/auth/", StringComparison.Ordinal);
+        if (response.StatusCode != HttpStatusCode.Unauthorized || isAuthEndpoint || _tokenStore.RefreshToken is not { } refreshToken)
+            return response;
+
+        if (!await RefreshSessionAsync(refreshToken, ct).ConfigureAwait(false))
+            return response; // не получилось обновить — отдаём исходный 401 как есть
+
+        response.Dispose();
+        using var retryRequest = requestFactory();
+        PrepareRequest(retryRequest); // подхватит уже обновлённый _tokenStore.AccessToken
+        return await _http.SendAsync(retryRequest, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>Без Authorization (сессия уже мертва) — только Cookie с refresh-токеном, как у
+    /// веб-версии сайта. Сохраняет новый access- и (если бэкенд его ротирует) refresh-токен в
+    /// TokenStore при успехе; при неудаче ничего не меняет — вызывающий SendWithRefreshAsync
+    /// просто вернёт исходный 401, и пользователя в итоге перекинет на экран входа.</summary>
+    private async Task<bool> RefreshSessionAsync(string refreshToken, CancellationToken ct)
+    {
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, "api/auth/refresh") { Content = new StringContent("") };
+            request.Headers.Add("Cookie", $"rw_refresh_token={refreshToken}");
+            request.Headers.Add("X-Requested-With", "XMLHttpRequest");
+            using var response = await _http.SendAsync(request, ct).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode) return false;
+
+            var newToken = ExtractCookieValue(response, "rw_session_token");
+            if (newToken == null) return false;
+            _tokenStore.Save(newToken);
+            // Ротация refresh-токена — если бэкенд не прислал новый, оставляем прежний (мог
+            // быть выдан на длительный срок и не ротируется на каждое обновление).
+            if (ExtractCookieValue(response, "rw_refresh_token") is { } newRefreshToken)
+                _tokenStore.SaveRefreshToken(newRefreshToken);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     /// <summary>Set-Cookie может встречаться несколько раз в одном ответе (rw_session_token +

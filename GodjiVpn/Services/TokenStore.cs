@@ -1,12 +1,13 @@
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 
 namespace GodjiVpn.Services;
 
 /// <summary>
-/// Хранит JWT в %LOCALAPPDATA%\GodjiVpn\secure.dat, зашифрованным через DPAPI
-/// (CurrentUser scope) — аналог EncryptedSharedPreferences в Android-версии: файл
+/// Хранит JWT (и, с 1.0.16, refresh-токен) в %LOCALAPPDATA%\GodjiVpn\secure.dat, зашифрованным
+/// через DPAPI (CurrentUser scope) — аналог EncryptedSharedPreferences в Android-версии: файл
 /// бесполезен вне профиля текущего пользователя Windows на этой машине.
 /// </summary>
 public sealed class TokenStore
@@ -16,16 +17,36 @@ public sealed class TokenStore
         "GodjiVpn", "secure.dat");
 
     private string? _cachedToken;
+    private string? _cachedRefreshToken;
+    private bool _loaded;
 
-    public string? AccessToken => _cachedToken ??= Load();
+    public string? AccessToken
+    {
+        get { EnsureLoaded(); return _cachedToken; }
+    }
+
+    /// <summary>rw_refresh_token — живёт намного дольше сессионного JWT (тот истекает ровно
+    /// через 24ч, см. ApiClient.RefreshSessionAsync). Может быть null для сессий, начатых до
+    /// этого обновления (старый сохранённый accessToken без refresh-токена, см. Load) — тогда
+    /// обновление сессии просто не сработает и пользователь один раз перелогинится, дальше уже
+    /// с refresh-токеном.</summary>
+    public string? RefreshToken
+    {
+        get { EnsureLoaded(); return _cachedRefreshToken; }
+    }
 
     public void Save(string accessToken)
     {
+        EnsureLoaded();
         _cachedToken = accessToken;
-        Directory.CreateDirectory(Path.GetDirectoryName(StorePath)!);
-        var plainBytes = Encoding.UTF8.GetBytes(accessToken);
-        var protectedBytes = ProtectedData.Protect(plainBytes, optionalEntropy: null, DataProtectionScope.CurrentUser);
-        File.WriteAllBytes(StorePath, protectedBytes);
+        Persist();
+    }
+
+    public void SaveRefreshToken(string refreshToken)
+    {
+        EnsureLoaded();
+        _cachedRefreshToken = refreshToken;
+        Persist();
     }
 
     public bool IsLoggedIn => !string.IsNullOrEmpty(AccessToken);
@@ -33,17 +54,48 @@ public sealed class TokenStore
     public void Clear()
     {
         _cachedToken = null;
+        _cachedRefreshToken = null;
+        _loaded = true;
         if (File.Exists(StorePath)) File.Delete(StorePath);
     }
 
-    private static string? Load()
+    private void Persist()
     {
-        if (!File.Exists(StorePath)) return null;
+        Directory.CreateDirectory(Path.GetDirectoryName(StorePath)!);
+        var json = JsonSerializer.Serialize(new StoredTokens { AccessToken = _cachedToken, RefreshToken = _cachedRefreshToken });
+        var plainBytes = Encoding.UTF8.GetBytes(json);
+        var protectedBytes = ProtectedData.Protect(plainBytes, optionalEntropy: null, DataProtectionScope.CurrentUser);
+        File.WriteAllBytes(StorePath, protectedBytes);
+    }
+
+    private void EnsureLoaded()
+    {
+        if (_loaded) return;
+        _loaded = true;
+        Load();
+    }
+
+    private void Load()
+    {
+        if (!File.Exists(StorePath)) return;
         try
         {
             var protectedBytes = File.ReadAllBytes(StorePath);
             var plainBytes = ProtectedData.Unprotect(protectedBytes, optionalEntropy: null, DataProtectionScope.CurrentUser);
-            return Encoding.UTF8.GetString(plainBytes);
+            var text = Encoding.UTF8.GetString(plainBytes);
+            // Новый формат (с 1.0.16) — JSON {"AccessToken":...,"RefreshToken":...}. Старый —
+            // просто сырой JWT-строкой (версии до добавления refresh-токена сохраняли только
+            // его) — тогда используем как accessToken без refresh-токена, ничего не падает.
+            if (text.StartsWith('{'))
+            {
+                var stored = JsonSerializer.Deserialize<StoredTokens>(text);
+                _cachedToken = stored?.AccessToken;
+                _cachedRefreshToken = stored?.RefreshToken;
+            }
+            else
+            {
+                _cachedToken = text;
+            }
         }
         catch (Exception)
         {
@@ -55,7 +107,12 @@ public sealed class TokenStore
             // приложение вообще не запускается, пока кто-то вручную не удалит secure.dat.
             // Во всех этих случаях правильнее считать, что токена нет (попросим войти заново),
             // чем не дать приложению открыться вовсе.
-            return null;
         }
+    }
+
+    private sealed class StoredTokens
+    {
+        public string? AccessToken { get; set; }
+        public string? RefreshToken { get; set; }
     }
 }

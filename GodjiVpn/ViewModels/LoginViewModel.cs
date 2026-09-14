@@ -81,8 +81,8 @@ public sealed partial class LoginViewModel : ObservableObject
         IsBusy = true;
         try
         {
-            var (_, token) = await _api.VerifyOtpAsync(Email.Trim(), Code.Trim());
-            await OnAuthenticatedAsync(token);
+            var (_, token, refreshToken) = await _api.VerifyOtpAsync(Email.Trim(), Code.Trim());
+            await OnAuthenticatedAsync(token, refreshToken);
         }
         catch (Exception ex)
         {
@@ -134,7 +134,7 @@ public sealed partial class LoginViewModel : ObservableObject
         IsBusy = true;
         try
         {
-            await OnAuthenticatedAsync(window.SessionToken);
+            await OnAuthenticatedAsync(window.SessionToken, window.RefreshToken);
         }
         finally
         {
@@ -142,9 +142,14 @@ public sealed partial class LoginViewModel : ObservableObject
         }
     }
 
-    private async Task OnAuthenticatedAsync(string token)
+    /// <summary>refreshToken — rw_refresh_token, живёт намного дольше сессионного JWT (тот
+    /// истекает ровно через 24ч, см. ApiClient.RefreshSessionAsync). Может отсутствовать —
+    /// бэкенд не всегда выставляет её отдельно (например при повторном входе с уже валидной
+    /// сессией) — тогда просто не будет автообновления, как раньше, ничего не падает.</summary>
+    private async Task OnAuthenticatedAsync(string token, string? refreshToken = null)
     {
         _tokenStore.Save(token);
+        if (refreshToken != null) _tokenStore.SaveRefreshToken(refreshToken);
         // Согласия на обработку данных — требуются один раз после первой регистрации. Не
         // блокируем вход, если запрос не удался — согласие можно принять позже.
         try

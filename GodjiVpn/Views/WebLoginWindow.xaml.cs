@@ -12,10 +12,15 @@ public partial class WebLoginWindow : Window
 {
     private const string SiteUrl = "https://gojihub.xyz/";
     private const string SessionCookieName = "rw_session_token";
+    private const string RefreshCookieName = "rw_refresh_token";
 
     private bool _handled;
 
     public string? SessionToken { get; private set; }
+
+    /// <summary>Живёт намного дольше сессионного JWT — без неё ApiClient.RefreshSessionAsync
+    /// не смог бы продлевать сессию раз в сутки. Может быть null, если сайт её не выставил.</summary>
+    public string? RefreshToken { get; private set; }
 
     public WebLoginWindow()
     {
@@ -61,6 +66,7 @@ public partial class WebLoginWindow : Window
 
         _handled = true;
         SessionToken = cookie.Value;
+        RefreshToken = cookies.FirstOrDefault(c => c.Name == RefreshCookieName)?.Value;
         DialogResult = true;
         Close();
     }
