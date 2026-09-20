@@ -134,8 +134,16 @@
                                      Foreground берётся из самой кнопки через RelativeSource. -->
                                 <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}">
                                     <ContentPresenter.Resources>
+                                        <!-- TextTrimming/NoWrap — порт из Android (fbfd20b): чипы вроде
+                                             периода подписки/вкладок "Программа" сидят в UniformGrid
+                                             фиксированной ширины (PlansView.xaml) — если подпись туда не
+                                             помещается, читаемая деградация (многоточие), а не наложение
+                                             текста, как было бы без явного ограничения. Не меняет вид
+                                             кнопок, которым ширины хватает (большинство). -->
                                         <Style TargetType="TextBlock">
                                             <Setter Property="Foreground" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                            <Setter Property="TextWrapping" Value="NoWrap"/>
+                                            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
                                         </Style>
                                     </ContentPresenter.Resources>
                                 </ContentPresenter>
@@ -262,10 +270,17 @@
                                         <ScaleTransform ScaleX="1" ScaleY="1"/>
                                     </TextBlock.RenderTransform>
                                 </TextBlock>
-                                <ContentPresenter Margin="0,3,0,0" HorizontalAlignment="Center">
+                                <!-- MaxWidth+TextTrimming — порт из Android (fbfd20b): подписи вкладок
+                                     ("НАСТРОЙКИ"/"ПОДПИСКА") на узком окне могли наложиться друг на
+                                     друга без явного ограничения ширины/переноса, как в Compose до
+                                     фикса, где сжатие до нуля рвало текст по одной букве на строку.
+                                     Здесь то же самое читаемое вырождение — многоточие, а не разрыв. -->
+                                <ContentPresenter Margin="0,3,0,0" HorizontalAlignment="Center" MaxWidth="70">
                                     <ContentPresenter.Resources>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="Foreground" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
+                                            <Setter Property="TextWrapping" Value="NoWrap"/>
+                                            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
                                         </Style>
                                     </ContentPresenter.Resources>
                                 </ContentPresenter>
