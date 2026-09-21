@@ -71,6 +71,17 @@ public sealed class SubscriptionService
         return (nodes, "Не удалось разобрать ответ subs.gojihub.xyz (неожиданный формат): " + Truncate(raw));
     }
 
+    /// <summary>Протоколы, которые xray-core умеет обрабатывать как proxy-outbound (см.
+    /// VpnEngine.WriteXrayConfigAsync — там те же четыре, плюс "freedom" для direct-правил).
+    /// VLESS/VMess используют одну структуру settings.vnext (адрес+порт+users[].id), Trojan/
+    /// Shadowsocks — другую, settings.servers (адрес+порт+пароль/метод, без отдельного
+    /// UUID-пользователя) — раньше здесь искался только vnext, поэтому Trojan/Shadowsocks-узлы
+    /// от Remnawave молча пропадали из списка серверов ещё на этапе парсинга, хотя xray их
+    /// прекрасно умеет поднимать. Hysteria2/TUIC сюда намеренно не включены — это протоколы на
+    /// QUIC, xray-core их не поддерживает в принципе (нужен sing-box-outbound или отдельный
+    /// клиент), сейчас это отдельная, не связанная с парсингом подписки задача.</summary>
+    private static readonly string[] ProxyProtocols = { "vless", "vmess", "trojan", "shadowsocks" };
+
     /// <summary>Реальный формат: JSON-массив профилей {remarks, dns, routing, outbounds, ...}.
     /// Легаси base64/vless:// формат (запасной вариант в Android) здесь не реализуем — бэкенд
     /// отдаёт его только при "неправильном" User-Agent, а мы всегда шлём "правильный".
@@ -96,28 +107,49 @@ public sealed class SubscriptionService
             JsonObject? proxyOutbound = null;
             foreach (var ob in outbounds)
             {
-                if (ob?.AsObject()["settings"]?.AsObject()["vnext"] != null)
+                var obj = ob?.AsObject();
+                var protocol = obj?["protocol"]?.GetValue<string>();
+                if (protocol == null || Array.IndexOf(ProxyProtocols, protocol) < 0) continue;
+                var settings = obj!["settings"]?.AsObject();
+                if (settings?["vnext"] != null || settings?["servers"] != null)
                 {
-                    proxyOutbound = ob!.AsObject();
+                    proxyOutbound = obj;
                     break;
                 }
             }
             if (proxyOutbound == null) continue;
 
-            // Один "странный" профиль (например пустой vnext или неожиданная структура) не
-            // должен обрушивать разбор всего списка — иначе пользователь вместо 9 рабочих
-            // серверов из 10 не увидит ни одного.
+            // Один "странный" профиль (например пустой vnext/servers или неожиданная
+            // структура) не должен обрушивать разбор всего списка — иначе пользователь вместо
+            // 9 рабочих серверов из 10 не увидит ни одного.
             try
             {
-                var vnextArray = proxyOutbound["settings"]!.AsObject()["vnext"]!.AsArray();
-                if (vnextArray.Count == 0) continue;
-                var vnext = vnextArray[0]!.AsObject();
-                var host = vnext["address"]?.GetValue<string>();
+                var settings = proxyOutbound["settings"]!.AsObject();
+                string? host;
+                int port;
+                string? uuid = null;
+                if (settings["vnext"] is JsonArray { Count: > 0 } vnextArray)
+                {
+                    // VLESS/VMess — адрес/порт/UUID клиента лежат в vnext[0].
+                    var vnext = vnextArray[0]!.AsObject();
+                    host = vnext["address"]?.GetValue<string>();
+                    port = vnext["port"]?.GetValue<int>() is int p and > 0 ? p : 443;
+                    uuid = vnext["users"]?.AsArray().Count > 0
+                        ? vnext["users"]!.AsArray()[0]?.AsObject()["id"]?.GetValue<string>()
+                        : null;
+                }
+                else if (settings["servers"] is JsonArray { Count: > 0 } serversArray)
+                {
+                    // Trojan/Shadowsocks — тот же адрес+порт, но без отдельного UUID-
+                    // пользователя (общий пароль/метод на весь сервер) — VlessNode.Uuid
+                    // остаётся null, это нормально, поле нужно только для отображения.
+                    var server = serversArray[0]!.AsObject();
+                    host = server["address"]?.GetValue<string>();
+                    port = server["port"]?.GetValue<int>() is int p2 and > 0 ? p2 : 443;
+                }
+                else continue;
+
                 if (string.IsNullOrWhiteSpace(host)) continue;
-                var port = vnext["port"]?.GetValue<int>() is int p and > 0 ? p : 443;
-                var uuid = vnext["users"]?.AsArray().Count > 0
-                    ? vnext["users"]!.AsArray()[0]?.AsObject()["id"]?.GetValue<string>()
-                    : null;
                 var remark = profile["remarks"]?.GetValue<string>();
                 remark = string.IsNullOrWhiteSpace(remark) ? $"Сервер {index + 1}" : remark;
 

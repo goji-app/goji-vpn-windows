@@ -334,19 +334,26 @@ public sealed class VpnEngine : INotifyPropertyChanged
         foreach (var ob in config["outbounds"]?.AsArray() ?? new JsonArray())
         {
             var protocol = ob?["protocol"]?.GetValue<string>();
-            // "freedom" ("direct") нужен здесь наравне с "vless": это тот самый outbound, в
-            // который ru-ip-direct/ru-domain-direct/torrent-*-direct с бэкенда (и наше
-            // собственное domain:ru-правило ниже) заворачивают трафик мимо туннеля. Без
+            // Раньше все правки ниже применялись ТОЛЬКО к "vless" — работали для остальных
+            // proxy-протоколов профиля (vmess/trojan/shadowsocks — см. SubscriptionService.
+            // ProxyProtocols, там тот же список) только случайно, если бэкенд вообще их
+            // присылал. И sendThrough, и TCP keep-alive нужны им ровно по тем же причинам, что
+            // и vless — протокол тут ни при чём, важно только что это proxy-outbound, а не
+            // "freedom"/direct (для direct — только sendThrough, дальше он не нужен).
+            var isProxyProtocol = protocol is "vless" or "vmess" or "trojan" or "shadowsocks";
+            // "freedom" ("direct") нужен здесь наравне с proxy-протоколами: это тот самый
+            // outbound, в который ru-ip-direct/ru-domain-direct/torrent-*-direct с бэкенда (и
+            // наше собственное domain:ru-правило ниже) заворачивают трафик мимо туннеля. Без
             // sendThrough у него в точности та же петля, что была у "proxy" до фикса —
             // исходящее соединение "direct" без явной привязки к физическому интерфейсу само
             // попадает обратно в TUN → sing-box → снова в SOCKS xray → снова "direct", и
             // получаем тот же шторм соединений/исчерпание портов, который уже один раз ловили.
-            if (protocol != "vless" && protocol != "freedom") continue;
+            if (!isProxyProtocol && protocol != "freedom") continue;
 
             if (!string.IsNullOrEmpty(physicalIp))
                 ob!["sendThrough"] = physicalIp;
 
-            if (protocol != "vless") continue; // дальше — правки для vless-outbound'ов (любой транспорт)
+            if (!isProxyProtocol) continue; // дальше — правки для proxy-outbound'ов (любой протокол/транспорт)
 
             // TCP keep-alive на уровне сокета — часть серверов профиля работает поверх голого
             // TCP (streamSettings.network "tcp"), не XHTTP, и туда фикс с xmux.hKeepAlivePeriod
@@ -356,7 +363,7 @@ public sealed class VpnEngine : INotifyPropertyChanged
             // таймаут таких обрывов — единицы минут, что совпадает с жалобами "разрывается через
             // 5-10 минут работы"), а xray на своей стороне не видит ни ошибки, ни закрытия.
             // sockopt — общее поле streamSettings, не зависит от network, ставим его безусловно
-            // для любого vless-outbound'а (для XHTTP это лишний, но не мешающий уровень защиты
+            // для любого proxy-outbound'а (для XHTTP это лишний, но не мешающий уровень защиты
             // поверх xmux-пинга ниже, а не замена ему).
             var streamSettings = ob!["streamSettings"]?.AsObject();
             if (streamSettings != null)
@@ -375,6 +382,9 @@ public sealed class VpnEngine : INotifyPropertyChanged
             // без keep-alive — xray на своей стороне при этом не видит ни ошибки, ни закрытия
             // (реально пойманный кейс: "tunneling request" уходит, дальше — тишина, ни данных,
             // ни завершения). Ненулевой период держит XHTTP-обёртку живой на таких простоях.
+            // Проверка по факту наличия xhttpSettings, а не по протоколу — в этом профиле
+            // XHTTP пока встречается только у VLESS+Reality, но привязывать фикс к конкретному
+            // протоколу незачем: сработает для чего угодно поверх XHTTP.
             var xmux = ob?["streamSettings"]?["xhttpSettings"]?["extra"]?["xmux"];
             if (xmux != null && (xmux["hKeepAlivePeriod"] == null || xmux["hKeepAlivePeriod"]!.GetValue<int>() == 0))
                 xmux["hKeepAlivePeriod"] = 30;
