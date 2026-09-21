@@ -356,22 +356,29 @@ public sealed class VpnEngine : INotifyPropertyChanged
             if (!isProxyProtocol) continue; // дальше — правки для proxy-outbound'ов (любой протокол/транспорт)
 
             // TCP keep-alive на уровне сокета — часть серверов профиля работает поверх голого
-            // TCP (streamSettings.network "tcp"), не XHTTP, и туда фикс с xmux.hKeepAlivePeriod
-            // ниже не достаёт вовсе (это чисто HTTP-уровневый пинг внутри XHTTP-обёртки, у
-            // голого TCP такой обёртки просто нет). Без SO_KEEPALIVE простаивающее TCP-
-            // соединение так же молча режется промежуточным NAT/файрволом при простое (типичный
-            // таймаут таких обрывов — единицы минут, что совпадает с жалобами "разрывается через
-            // 5-10 минут работы"), а xray на своей стороне не видит ни ошибки, ни закрытия.
-            // sockopt — общее поле streamSettings, не зависит от network, ставим его безусловно
-            // для любого TCP-based proxy-outbound'а (для XHTTP это лишний, но не мешающий
-            // уровень защиты поверх xmux-пинга ниже, а не замена ему). Hysteria — поверх QUIC/
-            // UDP, не TCP: SO_KEEPALIVE тут не при чём (протокол несёт собственный keepalive —
+            // TCP (streamSettings.network "tcp", напр. VLESS+TLS+Vision у европейских узлов —
+            // живой пример: sockopt.tcpKeepAliveIdle=100 у СЕРВЕРА на его собственном inbound),
+            // не XHTTP, и туда фикс с xmux.hKeepAlivePeriod ниже не достаёт вовсе (это чисто
+            // HTTP-уровневый пинг внутри XHTTP-обёртки, у голого TCP такой обёртки просто нет).
+            // Xray-core сам по себе для outbound без явного sockopt уже применяет дефолт 45с и
+            // на tcpKeepAliveIdle, и на tcpKeepAliveInterval (см. xtls.github.io/config/
+            // transports/sockopt.html) — не "совсем без keep-alive", как можно было бы
+            // предположить, но за 45с обычным NAT/файрволам ещё есть время оборвать
+            // простаивающее соединение раньше первой пробы. Явно выставляем ОБА поля (idle и
+            // interval), а не только interval, как раньше — idle короче серверных 100с, чтобы
+            // клиент начинал пробы заведомо раньше, чем истечёт терпение промежуточных узлов.
+            // sockopt — общее поле streamSettings, не зависит от network,
+            // ставим его для любого TCP-based proxy-outbound'а (для XHTTP — лишний, но не
+            // мешающий уровень защиты поверх xmux-пинга ниже, не замена ему). Hysteria — поверх
+            // QUIC/UDP, не TCP: SO_KEEPALIVE тут не при чём (свой keepalive на уровне протокола,
             // см. streamSettings.hysteriaSettings.udpIdleTimeout в самом профиле бэкенда).
             var streamSettings = ob!["streamSettings"]?.AsObject();
             if (streamSettings != null && protocol != "hysteria")
             {
                 var sockopt = streamSettings["sockopt"]?.AsObject();
                 if (sockopt == null) { sockopt = new JsonObject(); streamSettings["sockopt"] = sockopt; }
+                if (sockopt["tcpKeepAliveIdle"] == null || sockopt["tcpKeepAliveIdle"]!.GetValue<int>() == 0)
+                    sockopt["tcpKeepAliveIdle"] = 30;
                 if (sockopt["tcpKeepAliveInterval"] == null || sockopt["tcpKeepAliveInterval"]!.GetValue<int>() == 0)
                     sockopt["tcpKeepAliveInterval"] = 30;
             }
