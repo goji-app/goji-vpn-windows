@@ -346,7 +346,26 @@ public sealed class VpnEngine : INotifyPropertyChanged
             if (!string.IsNullOrEmpty(physicalIp))
                 ob!["sendThrough"] = physicalIp;
 
-            if (protocol != "vless") continue; // дальше — правки, специфичные для XHTTP-транспорта vless
+            if (protocol != "vless") continue; // дальше — правки для vless-outbound'ов (любой транспорт)
+
+            // TCP keep-alive на уровне сокета — часть серверов профиля работает поверх голого
+            // TCP (streamSettings.network "tcp"), не XHTTP, и туда фикс с xmux.hKeepAlivePeriod
+            // ниже не достаёт вовсе (это чисто HTTP-уровневый пинг внутри XHTTP-обёртки, у
+            // голого TCP такой обёртки просто нет). Без SO_KEEPALIVE простаивающее TCP-
+            // соединение так же молча режется промежуточным NAT/файрволом при простое (типичный
+            // таймаут таких обрывов — единицы минут, что совпадает с жалобами "разрывается через
+            // 5-10 минут работы"), а xray на своей стороне не видит ни ошибки, ни закрытия.
+            // sockopt — общее поле streamSettings, не зависит от network, ставим его безусловно
+            // для любого vless-outbound'а (для XHTTP это лишний, но не мешающий уровень защиты
+            // поверх xmux-пинга ниже, а не замена ему).
+            var streamSettings = ob!["streamSettings"]?.AsObject();
+            if (streamSettings != null)
+            {
+                var sockopt = streamSettings["sockopt"]?.AsObject();
+                if (sockopt == null) { sockopt = new JsonObject(); streamSettings["sockopt"] = sockopt; }
+                if (sockopt["tcpKeepAliveInterval"] == null || sockopt["tcpKeepAliveInterval"]!.GetValue<int>() == 0)
+                    sockopt["tcpKeepAliveInterval"] = 30;
+            }
 
             // Профиль с бэкенда шлёт "hKeepAlivePeriod":0 (без keep-alive пингов на уровне
             // XHTTP) — для короткого запрос-ответа (обычная загрузка страницы) это незаметно,
