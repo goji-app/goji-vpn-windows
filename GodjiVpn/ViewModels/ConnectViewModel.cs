@@ -23,9 +23,8 @@ public sealed partial class ConnectViewModel : ObservableObject, IDisposable
     private long _lastTx;
     private DateTime _lastSampleUtc;
 
-    // Скользящее окно последних замеров для мини-графика в карточках скорости — ощутимо
-    // короче, чем TrafficHistoryRepository (та копит дни, эта — секунды текущей сессии, и не
-    // переживает пересоздание ViewModel, что тут и не нужно). Порт из Android
+    // Скользящее окно последних замеров для мини-графика в карточках скорости — секунды
+    // текущей сессии, не переживает пересоздание ViewModel, что тут и не нужно. Порт из Android
     // (ConnectViewModel.downHistory/upHistory).
     private const int SpeedHistorySize = 30;
     private readonly List<double> _downHistory = new();

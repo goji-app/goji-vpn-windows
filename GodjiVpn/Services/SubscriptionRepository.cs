@@ -13,7 +13,6 @@ public sealed class SubscriptionRepository : INotifyPropertyChanged
     private readonly ApiClient _api;
     private readonly SubscriptionService _subscriptionService;
     private readonly CustomNodeStore _customNodes;
-    private readonly TrafficHistoryRepository _trafficHistory;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -59,12 +58,11 @@ public sealed class SubscriptionRepository : INotifyPropertyChanged
         private set { _broadcasts = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Broadcasts))); }
     }
 
-    public SubscriptionRepository(ApiClient api, SubscriptionService subscriptionService, CustomNodeStore customNodes, TrafficHistoryRepository trafficHistory)
+    public SubscriptionRepository(ApiClient api, SubscriptionService subscriptionService, CustomNodeStore customNodes)
     {
         _api = api;
         _subscriptionService = subscriptionService;
         _customNodes = customNodes;
-        _trafficHistory = trafficHistory;
         _customNodes.Changed += () => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Nodes)));
     }
 
@@ -128,9 +126,6 @@ public sealed class SubscriptionRepository : INotifyPropertyChanged
             try { active = await _api.GetSubscriptionAsync(active.Id); }
             catch { /* не критично — попробуем на следующем RefreshAsync */ }
         }
-
-        if (active?.Traffic is { } traffic)
-            _trafficHistory.RecordToday(traffic.UsedBytes);
 
         Subscription = active;
         if (active == null)
