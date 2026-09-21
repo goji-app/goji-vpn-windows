@@ -335,12 +335,12 @@ public sealed class VpnEngine : INotifyPropertyChanged
         {
             var protocol = ob?["protocol"]?.GetValue<string>();
             // Раньше все правки ниже применялись ТОЛЬКО к "vless" — работали для остальных
-            // proxy-протоколов профиля (vmess/trojan/shadowsocks — см. SubscriptionService.
-            // ProxyProtocols, там тот же список) только случайно, если бэкенд вообще их
-            // присылал. И sendThrough, и TCP keep-alive нужны им ровно по тем же причинам, что
-            // и vless — протокол тут ни при чём, важно только что это proxy-outbound, а не
+            // proxy-протоколов профиля (vmess/trojan/shadowsocks/hysteria — см.
+            // SubscriptionService.ProxyProtocols, там тот же список) только случайно, если
+            // бэкенд вообще их присылал. sendThrough нужен им всем по той же причине, что и
+            // vless — протокол тут ни при чём, важно только что это proxy-outbound, а не
             // "freedom"/direct (для direct — только sendThrough, дальше он не нужен).
-            var isProxyProtocol = protocol is "vless" or "vmess" or "trojan" or "shadowsocks";
+            var isProxyProtocol = protocol is "vless" or "vmess" or "trojan" or "shadowsocks" or "hysteria";
             // "freedom" ("direct") нужен здесь наравне с proxy-протоколами: это тот самый
             // outbound, в который ru-ip-direct/ru-domain-direct/torrent-*-direct с бэкенда (и
             // наше собственное domain:ru-правило ниже) заворачивают трафик мимо туннеля. Без
@@ -363,10 +363,12 @@ public sealed class VpnEngine : INotifyPropertyChanged
             // таймаут таких обрывов — единицы минут, что совпадает с жалобами "разрывается через
             // 5-10 минут работы"), а xray на своей стороне не видит ни ошибки, ни закрытия.
             // sockopt — общее поле streamSettings, не зависит от network, ставим его безусловно
-            // для любого proxy-outbound'а (для XHTTP это лишний, но не мешающий уровень защиты
-            // поверх xmux-пинга ниже, а не замена ему).
+            // для любого TCP-based proxy-outbound'а (для XHTTP это лишний, но не мешающий
+            // уровень защиты поверх xmux-пинга ниже, а не замена ему). Hysteria — поверх QUIC/
+            // UDP, не TCP: SO_KEEPALIVE тут не при чём (протокол несёт собственный keepalive —
+            // см. streamSettings.hysteriaSettings.udpIdleTimeout в самом профиле бэкенда).
             var streamSettings = ob!["streamSettings"]?.AsObject();
-            if (streamSettings != null)
+            if (streamSettings != null && protocol != "hysteria")
             {
                 var sockopt = streamSettings["sockopt"]?.AsObject();
                 if (sockopt == null) { sockopt = new JsonObject(); streamSettings["sockopt"] = sockopt; }

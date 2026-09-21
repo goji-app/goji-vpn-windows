@@ -71,16 +71,22 @@ public sealed class SubscriptionService
         return (nodes, "Не удалось разобрать ответ subs.gojihub.xyz (неожиданный формат): " + Truncate(raw));
     }
 
-    /// <summary>Протоколы, которые xray-core умеет обрабатывать как proxy-outbound (см.
-    /// VpnEngine.WriteXrayConfigAsync — там те же четыре, плюс "freedom" для direct-правил).
-    /// VLESS/VMess используют одну структуру settings.vnext (адрес+порт+users[].id), Trojan/
-    /// Shadowsocks — другую, settings.servers (адрес+порт+пароль/метод, без отдельного
-    /// UUID-пользователя) — раньше здесь искался только vnext, поэтому Trojan/Shadowsocks-узлы
-    /// от Remnawave молча пропадали из списка серверов ещё на этапе парсинга, хотя xray их
-    /// прекрасно умеет поднимать. Hysteria2/TUIC сюда намеренно не включены — это протоколы на
-    /// QUIC, xray-core их не поддерживает в принципе (нужен sing-box-outbound или отдельный
-    /// клиент), сейчас это отдельная, не связанная с парсингом подписки задача.</summary>
-    private static readonly string[] ProxyProtocols = { "vless", "vmess", "trojan", "shadowsocks" };
+    /// <summary>Протоколы, которые встроенный xray.exe умеет обрабатывать как proxy-outbound
+    /// (см. VpnEngine.WriteXrayConfigAsync — тот же список, плюс "freedom" для direct-правил).
+    /// Три разные структуры settings:
+    ///  - VLESS/VMess: settings.vnext[0] (адрес+порт+users[].id — отдельный UUID клиента);
+    ///  - Trojan/Shadowsocks: settings.servers[0] (адрес+порт+пароль/метод, без UUID);
+    ///  - Hysteria (v2): settings.address/settings.port ПРЯМО в settings (не в массиве), пароль
+    ///    — отдельно, в streamSettings.hysteriaSettings.auth, а не в settings вообще (сверено
+    ///    с официальной документацией Xray-core, а не угадано по аналогии — структура реально
+    ///    другая, не settings.servers, как можно было бы предположить по Trojan).
+    /// Раньше здесь искался только vnext, поэтому Trojan/Shadowsocks/Hysteria-узлы от Remnawave
+    /// молча пропадали из списка серверов ещё на этапе парсинга, хотя xray их прекрасно умеет
+    /// поднимать — Hysteria2-поддержка подтверждена вживую: встроенный xray.exe (26.3.27)
+    /// содержит символы HysteriaClientConfig/hysteriaSettings, то есть протокол в бинарнике
+    /// реально скомпилирован, это не голая теория. TUIC сюда не входит — xray-core его не
+    /// поддерживает вообще (ни в каком виде), это отдельная, не связанная с этой правкой задача.</summary>
+    private static readonly string[] ProxyProtocols = { "vless", "vmess", "trojan", "shadowsocks", "hysteria" };
 
     /// <summary>Реальный формат: JSON-массив профилей {remarks, dns, routing, outbounds, ...}.
     /// Легаси base64/vless:// формат (запасной вариант в Android) здесь не реализуем — бэкенд
@@ -111,7 +117,7 @@ public sealed class SubscriptionService
                 var protocol = obj?["protocol"]?.GetValue<string>();
                 if (protocol == null || Array.IndexOf(ProxyProtocols, protocol) < 0) continue;
                 var settings = obj!["settings"]?.AsObject();
-                if (settings?["vnext"] != null || settings?["servers"] != null)
+                if (settings?["vnext"] != null || settings?["servers"] != null || settings?["address"] != null)
                 {
                     proxyOutbound = obj;
                     break;
@@ -146,6 +152,14 @@ public sealed class SubscriptionService
                     var server = serversArray[0]!.AsObject();
                     host = server["address"]?.GetValue<string>();
                     port = server["port"]?.GetValue<int>() is int p2 and > 0 ? p2 : 443;
+                }
+                else if (settings["address"] != null)
+                {
+                    // Hysteria (v2) — третья, отдельная структура: адрес/порт лежат прямо в
+                    // settings, не в массиве servers/vnext (пароль — в streamSettings.
+                    // hysteriaSettings.auth, сюда не нужен, xray читает его сам из ConnectPayloadJson).
+                    host = settings["address"]?.GetValue<string>();
+                    port = settings["port"]?.GetValue<int>() is int p3 and > 0 ? p3 : 443;
                 }
                 else continue;
 
