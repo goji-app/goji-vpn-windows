@@ -14,10 +14,8 @@ namespace GodjiVpn.ViewModels;
 public sealed partial class LoginViewModel : ObservableObject
 {
     private const string BotUrl = "https://t.me/Shadow_Duck_bot";
-    // Домен/бренд ShadowDuck — легаси-название бэкенда (см. память project-remnawave-backend-
-    // architecture), не Godji; ссылки скопированы как есть из рабочего Android-кода.
-    private const string TermsUrl = "https://telegra.ph/Polzovatelskoe-soglashenie-servisa-ShadowDuck-10-10";
-    private const string PrivacyUrl = "https://telegra.ph/Politika-konfidencialnosti-servisa-ShadowDuck-10-10";
+    private const string TermsUrl = "https://telegra.ph/Polzovatelskoe-soglashenie-Goji-VPN-09-20";
+    private const string PrivacyUrl = "https://telegra.ph/Politika-konfidencialnosti-Goji-VPN-09-20";
 
     private readonly ApiClient _api;
     private readonly TokenStore _tokenStore;
