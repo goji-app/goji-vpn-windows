@@ -292,6 +292,125 @@ public sealed class RenameDeviceRequest
     public string ReadableName { get; set; } = "";
 }
 
+// ── Поддержка (gojihub.xyz/api/support/*, api/faq) — нативный чат поддержки, порт из
+//    Android (720f5ff). Списочные поля везде nullable: бэкенд на Go отдаёт пустой список как
+//    null (nil-slice), а не [] — подтверждено комментарием в исходном Android-коде, тот же
+//    принцип уже применён выше у BroadcastDto.Buttons/ReferralsResponse. Для эндпоинтов,
+//    отдающих список НЕПОСРЕДСТВЕННО телом ответа (messages/queues — не обёрнутых в объект),
+//    сериализованный "null" может быть телом ответа целиком — см. ApiClient.GetNullableAsync,
+//    обычный ReadOrThrowAsync такое тело ошибочно принял бы за "пустой ответ сервера".
+
+public sealed class SupportTicketsResponse
+{
+    public List<SupportTicketDto>? Tickets { get; set; }
+}
+
+public sealed class SupportTicketDto
+{
+    public long Id { get; set; }
+    public string? Subject { get; set; }
+
+    [JsonPropertyName("last_message")]
+    public string? LastMessage { get; set; }
+
+    public string Status { get; set; } = "";
+
+    [JsonPropertyName("unread_count")]
+    public int UnreadCount { get; set; }
+
+    [JsonPropertyName("created_at")]
+    public string? CreatedAt { get; set; }
+}
+
+public sealed class SupportMessageDto
+{
+    public long Id { get; set; }
+
+    [JsonPropertyName("sender_type")]
+    public string SenderType { get; set; } = "";
+
+    [JsonPropertyName("sender_name")]
+    public string? SenderName { get; set; }
+
+    public string? Message { get; set; }
+
+    [JsonPropertyName("created_at")]
+    public string? CreatedAt { get; set; }
+
+    /// <summary>Непустое — системное событие ленты ("тикет создан/назначен/закрыт"), не
+    /// обычное сообщение (см. TicketChatViewModel.ToItem: IsEvent).</summary>
+    [JsonPropertyName("event_type")]
+    public string? EventType { get; set; }
+
+    public List<SupportAttachmentDto>? Attachments { get; set; }
+}
+
+/// <summary>Только имя файла реально показывается в чате — скачать/открыть вложение из
+/// приложения нельзя (в исходном Android-клиенте тоже нет такого endpoint'а/UI, см. отчёт
+/// по 720f5ff), поэтому остальные поля (uuid/file_type/file_size) не объявлены.</summary>
+public sealed class SupportAttachmentDto
+{
+    [JsonPropertyName("file_name")]
+    public string? FileName { get; set; }
+}
+
+public sealed class CreateSupportTicketRequest
+{
+    public string? Subject { get; set; }
+    public string Message { get; set; } = "";
+
+    [JsonPropertyName("queue_id")]
+    public long? QueueId { get; set; }
+}
+
+public sealed class CreateSupportTicketResponse
+{
+    public SupportTicketDto? Ticket { get; set; }
+}
+
+public sealed class SendSupportMessageRequest
+{
+    public string Message { get; set; } = "";
+}
+
+/// <summary>Проверяется превентивно ДО показа формы создания тикета — чтобы не дать
+/// заполнить форму впустую и получить отказ на отправке (см. NewTicketViewModel.LoadAsync).
+/// limit/active с бэкенда не читаем — в UI негде показать, важны только эти два поля.</summary>
+public sealed class SupportTicketLimitResponse
+{
+    [JsonPropertyName("can_create")]
+    public bool CanCreate { get; set; }
+
+    [JsonPropertyName("active_ticket_id")]
+    public long? ActiveTicketId { get; set; }
+}
+
+public sealed class SupportQueueDto
+{
+    public long Id { get; set; }
+    public string Name { get; set; } = "";
+}
+
+public sealed class FaqResponse
+{
+    public List<FaqItemDto>? Ungrouped { get; set; }
+    public List<FaqSectionDto>? Sections { get; set; }
+}
+
+public sealed class FaqSectionDto
+{
+    public long Id { get; set; }
+    public string? Name { get; set; }
+    public List<FaqItemDto>? Items { get; set; }
+}
+
+public sealed class FaqItemDto
+{
+    public long Id { get; set; }
+    public string Question { get; set; } = "";
+    public string Answer { get; set; } = "";
+}
+
 /// <summary>
 /// Один сервер из подписки пользователя. ConnectPayloadJson — это уже готовый Xray-конфиг
 /// (dns/routing/outbounds, без inbounds), полученный с subs.gojihub.xyz при переданном X-HWID.

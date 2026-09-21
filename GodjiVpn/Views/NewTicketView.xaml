@@ -1,0 +1,117 @@
+<UserControl x:Class="GodjiVpn.Views.NewTicketView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid Background="{DynamicResource BgBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Margin="16,14,16,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Button Grid.Column="0" Content="‹" FontSize="22" Padding="0,0,10,0"
+                    Background="Transparent" BorderThickness="0" Cursor="Hand"
+                    Foreground="{DynamicResource TextPrimaryBrush}" Command="{Binding BackCommand}"/>
+            <TextBlock Grid.Column="1" Text="Новое обращение" FontFamily="{StaticResource ManropeSemiBoldFamily}"
+                       FontSize="15" VerticalAlignment="Center" Margin="4,0,0,0"/>
+        </Grid>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="18,0,18,14">
+            <StackPanel>
+
+                <ProgressBar Width="26" Height="26" IsIndeterminate="True" Foreground="{DynamicResource TealDeepBrush}"
+                             HorizontalAlignment="Center" Margin="0,24,0,0"
+                             Visibility="{Binding Loading, Converter={StaticResource BoolToVisibilityConverter}}"/>
+
+                <StackPanel Visibility="{Binding Loading, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+
+                    <!-- Лимит открытых обращений достигнут — форма скрыта целиком, вместо неё
+                         предложение перейти в уже существующее активное обращение (см.
+                         NewTicketViewModel.LoadAsync: превентивная проверка ДО показа формы). -->
+                    <Border Background="{DynamicResource TerracottaTintBrush}" BorderBrush="{DynamicResource TerracottaTintBorderBrush}"
+                            BorderThickness="1" CornerRadius="20" Padding="16"
+                            Visibility="{Binding CanCreate, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+                        <StackPanel>
+                            <TextBlock Text="У вас уже есть активное обращение" FontFamily="{StaticResource ManropeSemiBoldFamily}"
+                                       FontSize="13.5" Foreground="{DynamicResource TerracottaDeepBrush}" TextWrapping="Wrap"/>
+                            <TextBlock Text="Дождитесь ответа поддержки в нём, прежде чем создавать новое." FontSize="12"
+                                       Foreground="{DynamicResource TerracottaDeepBrush}" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                            <Button Content="Перейти к обращению" Style="{StaticResource InkButton}" Margin="0,12,0,0"
+                                    HorizontalAlignment="Stretch" Command="{Binding OpenActiveTicketCommand}"
+                                    Visibility="{Binding HasActiveTicketId, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                        </StackPanel>
+                    </Border>
+
+                    <StackPanel Visibility="{Binding CanCreate, Converter={StaticResource BoolToVisibilityConverter}}">
+
+                        <StackPanel Visibility="{Binding ShowQueuePicker, Converter={StaticResource BoolToVisibilityConverter}}" Margin="0,0,0,14">
+                            <TextBlock Text="Куда обратиться" Foreground="{DynamicResource TextMutedBrush}" FontSize="11"
+                                       FontFamily="{StaticResource ManropeSemiBoldFamily}" Margin="0,0,0,6"/>
+                            <Border Background="{DynamicResource ChipBrush}" CornerRadius="16" Padding="5">
+                                <ItemsControl ItemsSource="{Binding Queues}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Button Margin="2" Padding="12,8"
+                                                    Command="{Binding DataContext.SelectQueueCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                    CommandParameter="{Binding}">
+                                                <Button.Style>
+                                                    <Style TargetType="Button" BasedOn="{StaticResource PressScaleButtonBase}">
+                                                        <Setter Property="Background" Value="Transparent"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                                <Setter Property="Background" Value="{DynamicResource InkBrush}"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Button.Style>
+                                                <TextBlock Text="{Binding Name}" FontSize="12" FontFamily="{StaticResource ManropeSemiBoldFamily}">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                                    <Setter Property="Foreground" Value="{DynamicResource SurfaceBrush}"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </Border>
+                        </StackPanel>
+
+                        <TextBlock Text="Тема (необязательно)" Foreground="{DynamicResource TextMutedBrush}" FontSize="11"
+                                   FontFamily="{StaticResource ManropeSemiBoldFamily}" Margin="0,0,0,6"/>
+                        <TextBox Text="{Binding Subject, UpdateSourceTrigger=PropertyChanged}" FontSize="13" Margin="0,0,0,14"/>
+
+                        <TextBlock Text="Сообщение" Foreground="{DynamicResource TextMutedBrush}" FontSize="11"
+                                   FontFamily="{StaticResource ManropeSemiBoldFamily}" Margin="0,0,0,6"/>
+                        <TextBox Text="{Binding Message, UpdateSourceTrigger=PropertyChanged}" FontSize="13"
+                                 TextWrapping="Wrap" AcceptsReturn="True" MinHeight="110" VerticalScrollBarVisibility="Auto"
+                                 Margin="0,0,0,10"/>
+
+                        <TextBlock Text="{Binding ErrorMessage}" FontSize="11.5" Foreground="{DynamicResource DangerBrush}"
+                                   TextWrapping="Wrap" Margin="0,0,0,10"
+                                   Visibility="{Binding ErrorMessage, Converter={StaticResource NullToVisibilityConverter}}"/>
+
+                        <Button Content="Отправить" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Stretch"
+                                Command="{Binding SubmitCommand}"
+                                Visibility="{Binding Submitting, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
+                        <ProgressBar Width="24" Height="24" IsIndeterminate="True" Foreground="{DynamicResource TealDeepBrush}"
+                                     HorizontalAlignment="Center" Margin="0,4,0,0"
+                                     Visibility="{Binding Submitting, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                    </StackPanel>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

@@ -159,7 +159,6 @@ public sealed partial class PlanItem : ObservableObject
 public sealed partial class PlansViewModel : ObservableObject
 {
     private const string RenewUrl = "https://gojihub.xyz/#/plans";
-    private const string SupportUrl = "https://gojihub.xyz/#/support-chat";
 
     // Свёрнутый вид (по умолчанию) — только 2 последние новости, без пагинации. Развёрнутый
     // (по клику "Показать все") — постранично, максимум 3 на странице.
@@ -424,7 +423,7 @@ public sealed partial class PlansViewModel : ObservableObject
                 ShowInput = false,
                 PrimaryText = "Написать в поддержку"
             };
-            if (supportDialog.ShowDialog() == true) OpenUrl(SupportUrl);
+            if (supportDialog.ShowDialog() == true) OpenSupport();
             return;
         }
 
@@ -535,8 +534,10 @@ public sealed partial class PlansViewModel : ObservableObject
         OpenUrl(url);
     }
 
+    /// <summary>Раньше открывала внешний браузер на /#/support-chat — теперь нативный чат
+    /// поддержки прямо в приложении (см. Views/SupportWindow). Порт из Android (720f5ff).</summary>
     [RelayCommand]
-    private void OpenSupport() => OpenUrl(SupportUrl);
+    private void OpenSupport() => new SupportWindow(_api) { Owner = Application.Current.MainWindow }.ShowDialog();
 
     [RelayCommand]
     private void OpenBroadcastButton(string url) => OpenUrl(url);

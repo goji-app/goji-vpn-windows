@@ -55,6 +55,26 @@
                     </StackPanel>
                 </Border>
 
+                <!-- Поддержка — нативный чат обращений (см. Views/SupportWindow), та же точка
+                     входа, что и баннер на вкладке "Подписка" (PlansViewModel.OpenSupport).
+                     Порт из Android (720f5ff): там тоже отдельная строка в SettingsScreen. -->
+                <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource InkBrush}"
+                        BorderThickness="1.5" CornerRadius="24" Padding="16" Margin="0,0,0,14"
+                        Style="{StaticResource PressScaleBorder}" MouseLeftButtonUp="OnSupportClick">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Поддержка" FontFamily="{StaticResource ManropeSemiBoldFamily}" FontSize="14"/>
+                            <TextBlock Text="Обращения и переписка прямо в приложении" FontSize="11.5"
+                                       Foreground="{DynamicResource TextMutedBrush}" Margin="0,3,0,0"/>
+                        </StackPanel>
+                        <TextBlock Grid.Column="1" Text="›" FontSize="18" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
+                    </Grid>
+                </Border>
+
                 <!-- О приложении -->
                 <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource InkBrush}"
                         BorderThickness="1.5" CornerRadius="24" Padding="16" Margin="0,0,0,14">

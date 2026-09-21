@@ -140,10 +140,76 @@ public sealed class ApiClient
         await ReadOrThrowAsync<object?>(response, ct).ConfigureAwait(false);
     }
 
+    // ── Поддержка (api/support/*, api/faq) — см. комментарий у SupportTicketsResponse и т.д.
+    //    в ApiModels.cs. GetSupportMessagesAsync/GetSupportQueuesAsync идут через
+    //    GetNullableAsync, а не обычный GetAsync — их тело ответа само по себе список (не
+    //    объект-обёртка), и Go nil-slice сериализуется как буквальный JSON "null" на пустом
+    //    результате; обычный ReadOrThrowAsync принял бы это за "Пустой ответ сервера". ────────
+
+    public async Task<List<SupportTicketDto>> GetSupportTicketsAsync(string status, int limit, int offset, CancellationToken ct = default)
+    {
+        var response = await GetAsync<SupportTicketsResponse>($"api/support/tickets?status={status}&limit={limit}&offset={offset}", ct).ConfigureAwait(false);
+        return response.Tickets ?? new();
+    }
+
+    public async Task<SupportTicketDto> GetSupportTicketAsync(long ticketId, CancellationToken ct = default) =>
+        await GetAsync<SupportTicketDto>($"api/support/tickets/{ticketId}", ct).ConfigureAwait(false);
+
+    public async Task<List<SupportMessageDto>> GetSupportMessagesAsync(long ticketId, CancellationToken ct = default) =>
+        await GetNullableAsync<List<SupportMessageDto>>($"api/support/tickets/{ticketId}/messages", ct).ConfigureAwait(false) ?? new();
+
+    public async Task<SupportTicketDto> CreateSupportTicketAsync(string? subject, string message, long? queueId, CancellationToken ct = default)
+    {
+        var response = await PostAsync<CreateSupportTicketRequest, CreateSupportTicketResponse>("api/support/tickets",
+            new CreateSupportTicketRequest { Subject = subject, Message = message, QueueId = queueId }, ct).ConfigureAwait(false);
+        return response.Ticket ?? throw new InvalidOperationException("Пустой ответ сервера");
+    }
+
+    public async Task SendSupportMessageAsync(long ticketId, string message, CancellationToken ct = default) =>
+        await PostAsync<SendSupportMessageRequest, object?>($"api/support/tickets/{ticketId}/messages",
+            new SendSupportMessageRequest { Message = message }, ct).ConfigureAwait(false);
+
+    /// <summary>Тот же эндпоинт, что и SendSupportMessageAsync, но multipart/form-data — простой
+    /// одношаговый POST, как у веб-клиента: без отдельного протокола init/finalize и без
+    /// постадийного прогресса на файл (сознательно не реализовано даже в исходном Android-
+    /// клиенте, см. отчёт по 720f5ff). files — уже прочитанное в память содержимое (десктопные
+    /// вложения из чата поддержки некрупные, потоковая передача с диска не нужна).</summary>
+    public async Task SendSupportMessageWithFilesAsync(long ticketId, string message,
+        IReadOnlyList<(string FileName, byte[] Content, string ContentType)> files, CancellationToken ct = default)
+    {
+        using var response = await SendWithRefreshAsync(() =>
+        {
+            var content = new MultipartFormDataContent { { new StringContent(message), "message" } };
+            foreach (var file in files)
+            {
+                var part = new ByteArrayContent(file.Content);
+                part.Headers.ContentType = new MediaTypeHeaderValue(file.ContentType);
+                content.Add(part, "files", file.FileName);
+            }
+            return new HttpRequestMessage(HttpMethod.Post, $"api/support/tickets/{ticketId}/messages") { Content = content };
+        }, ct).ConfigureAwait(false);
+        await ReadOrThrowAsync<object?>(response, ct).ConfigureAwait(false);
+    }
+
+    public async Task<SupportTicketLimitResponse> GetSupportTicketLimitAsync(CancellationToken ct = default) =>
+        await GetAsync<SupportTicketLimitResponse>("api/support/ticket-limit", ct).ConfigureAwait(false);
+
+    public async Task<List<SupportQueueDto>> GetSupportQueuesAsync(CancellationToken ct = default) =>
+        await GetNullableAsync<List<SupportQueueDto>>("api/support/queues", ct).ConfigureAwait(false) ?? new();
+
+    public async Task<FaqResponse> GetFaqAsync(CancellationToken ct = default) =>
+        await GetAsync<FaqResponse>("api/faq", ct).ConfigureAwait(false);
+
     private async Task<TResponse> GetAsync<TResponse>(string path, CancellationToken ct)
     {
         using var response = await SendWithRefreshAsync(() => new HttpRequestMessage(HttpMethod.Get, path), ct).ConfigureAwait(false);
         return await ReadOrThrowAsync<TResponse>(response, ct).ConfigureAwait(false);
+    }
+
+    private async Task<TResponse?> GetNullableAsync<TResponse>(string path, CancellationToken ct)
+    {
+        using var response = await SendWithRefreshAsync(() => new HttpRequestMessage(HttpMethod.Get, path), ct).ConfigureAwait(false);
+        return await ReadNullableOrThrowAsync<TResponse>(response, ct).ConfigureAwait(false);
     }
 
     private async Task<TResponse> PostAsync<TBody, TResponse>(string path, TBody body, CancellationToken ct)
@@ -274,6 +340,17 @@ public sealed class ApiClient
             return default!;
         return JsonSerializer.Deserialize<TResponse>(body, JsonOptions)
             ?? throw new InvalidOperationException("Пустой ответ сервера");
+    }
+
+    /// <summary>Как ReadOrThrowAsync, но десериализованный null — законный результат, а не
+    /// ошибка (см. комментарий у GetNullableAsync/SupportTicketsResponse: Go nil-slice на
+    /// пустом списке сериализуется как буквальный "null", а не "[]").</summary>
+    private static async Task<TResponse?> ReadNullableOrThrowAsync<TResponse>(HttpResponseMessage response, CancellationToken ct)
+    {
+        var body = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode)
+            throw new ApiException(response.StatusCode, body);
+        return JsonSerializer.Deserialize<TResponse>(body, JsonOptions);
     }
 }
 

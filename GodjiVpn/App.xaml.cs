@@ -82,7 +82,7 @@ public partial class App : Application
         var pingService = new PingService(pingSettings);
         var serversViewModel = new ServersViewModel(subscriptionRepository, pingService, customNodeStore, favoriteServersStore);
         var plansViewModel = new PlansViewModel(apiClient, subscriptionRepository);
-        var settingsViewModel = new SettingsViewModel(tokenStore, vpnEngine, hwidProvider, pingSettings, themeService, updateService);
+        var settingsViewModel = new SettingsViewModel(tokenStore, vpnEngine, hwidProvider, pingSettings, themeService, updateService, apiClient);
         var shellViewModel = new ShellViewModel(connectViewModel, serversViewModel, plansViewModel, settingsViewModel);
         var mainViewModel = new MainViewModel(tokenStore, loginViewModel, shellViewModel);
 

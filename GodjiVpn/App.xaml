@@ -380,6 +380,18 @@
             <DataTemplate DataType="{x:Type vm:SettingsViewModel}">
                 <views:SettingsView/>
             </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:SupportListViewModel}">
+                <views:SupportListView/>
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:NewTicketViewModel}">
+                <views:NewTicketView/>
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:TicketChatViewModel}">
+                <views:TicketChatView/>
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:FaqViewModel}">
+                <views:FaqView/>
+            </DataTemplate>
 
         </ResourceDictionary>
     </Application.Resources>

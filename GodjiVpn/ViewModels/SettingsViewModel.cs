@@ -7,6 +7,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GodjiVpn.Services;
 using GodjiVpn.Utils;
+using GodjiVpn.Views;
 
 namespace GodjiVpn.ViewModels;
 
@@ -44,6 +45,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     private readonly PingSettings _pingSettings;
     private readonly ThemeService _theme;
     private readonly UpdateService _updateService;
+    private readonly ApiClient _api;
 
     private static string LogsDir => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GodjiVpn", "logs");
@@ -96,7 +98,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     public event Action? RequestLogout;
 
     public SettingsViewModel(TokenStore tokenStore, VpnEngine vpnEngine, HwidProvider hwid, PingSettings pingSettings,
-        ThemeService theme, UpdateService updateService)
+        ThemeService theme, UpdateService updateService, ApiClient api)
     {
         _tokenStore = tokenStore;
         _vpnEngine = vpnEngine;
@@ -104,6 +106,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         _pingSettings = pingSettings;
         _theme = theme;
         _updateService = updateService;
+        _api = api;
         selectedLogFile = LogFiles[0];
         selectedLogFile.IsSelected = true;
         foreach (var m in PingMethods) m.IsSelected = m.Method == _pingSettings.Method;
@@ -175,6 +178,12 @@ public sealed partial class SettingsViewModel : ObservableObject
         Directory.CreateDirectory(LogsDir);
         ShellLauncher.OpenFolder(LogsDir);
     }
+
+    /// <summary>Новая секция "Поддержка" — тот же нативный чат, что и на вкладке "Подписка"
+    /// (см. PlansViewModel.OpenSupport). Порт из Android (720f5ff): там тоже добавлена
+    /// отдельная точка входа в SettingsScreen.</summary>
+    [RelayCommand]
+    private void OpenSupport() => new SupportWindow(_api) { Owner = Application.Current.MainWindow }.ShowDialog();
 
     [RelayCommand]
     private async Task LogoutAsync()
