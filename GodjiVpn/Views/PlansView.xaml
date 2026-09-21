@@ -48,6 +48,9 @@
                                 <TextBlock Margin="0,3,0,4" FontSize="11.5" Foreground="{DynamicResource TextMutedBrush}">
                                     <Run Text="До "/><Run Text="{Binding ExpiryLabel, Mode=OneWay}"/>
                                 </TextBlock>
+                                <TextBlock Text="{Binding PersonalDiscountLabel}" Margin="0,0,0,4" FontSize="10.5"
+                                           FontFamily="{StaticResource ManropeExtraBoldFamily}" Foreground="{DynamicResource TealDeepBrush}"
+                                           Visibility="{Binding PersonalDiscountPercent, Converter={StaticResource ZeroToVisibilityConverter}}"/>
                                 <TextBlock Margin="0,0,0,8" FontSize="11.5" Foreground="{DynamicResource TextMutedBrush}">
                                     <Run Text="Устройств по тарифу: "/><Run Text="{Binding DeviceLimit, Mode=OneWay}" FontWeight="Bold"/>
                                 </TextBlock>
@@ -139,7 +142,11 @@
                      переименование и удаление (см. PlansViewModel.Devices/RenameDeviceCommand/
                      DeleteDeviceCommand), порт DevicesSection из Android PlansScreen.kt. -->
                 <StackPanel Visibility="{Binding HasDevices, Converter={StaticResource BoolToVisibilityConverter}}" Margin="0,0,0,14">
-                    <TextBlock Text="Устройства" FontFamily="{StaticResource SpaceGroteskFamily}" FontWeight="Medium" FontSize="19" Margin="0,0,0,8"/>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom" Margin="0,0,0,8">
+                        <TextBlock Text="Устройства" FontFamily="{StaticResource SpaceGroteskFamily}" FontWeight="Medium" FontSize="19"/>
+                        <TextBlock Text="{Binding DevicesCountLabel}" FontFamily="{StaticResource ManropeSemiBoldFamily}" FontSize="12.5"
+                                   Foreground="{DynamicResource TextMutedBrush}" Margin="6,0,0,2" VerticalAlignment="Bottom"/>
+                    </StackPanel>
                     <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource InkBrush}"
                             BorderThickness="1.5" CornerRadius="24" Padding="16">
                         <StackPanel>

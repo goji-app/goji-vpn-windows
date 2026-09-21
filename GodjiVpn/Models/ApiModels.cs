@@ -144,6 +144,11 @@ public sealed class TrafficInfo
 public sealed class PlansResponse
 {
     public List<PlanInfo> Plans { get; set; } = new();
+
+    /// <summary>Персональная скидка клиента в процентах (0-100) — то же поле, что веб-версия
+    /// читает как customer_discount_percent на каталоге тарифов. null/отсутствует — скидки нет.</summary>
+    [JsonPropertyName("customer_discount_percent")]
+    public double? CustomerDiscountPercent { get; set; }
 }
 
 public sealed class PlanInfo

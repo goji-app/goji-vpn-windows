@@ -97,9 +97,18 @@ public sealed partial class DeviceItem : ObservableObject
     [ObservableProperty] private string name = "";
     public string? Platform { get; init; }
     public string? CreatedAtLabel { get; init; }
+    /// <summary>Через что реально зарегистрировалось устройство на бэкенде (User-Agent запроса
+    /// подписки) — тот же клиент бэкенд запишет для ЛЮБОГО устройства на Goji (см.
+    /// SubscriptionService, там он намеренно подменяется на "v2rayNG/..."), отдаём как есть.</summary>
+    public string? ConnectedVia { get; init; }
     [ObservableProperty] private bool isBusy;
 
-    public string Subtitle => string.Join(" · ", new[] { Platform, CreatedAtLabel }.Where(s => !string.IsNullOrEmpty(s)));
+    public string Subtitle => string.Join(" · ", new[]
+    {
+        Platform,
+        !string.IsNullOrEmpty(ConnectedVia) ? $"Через {ConnectedVia}" : null,
+        CreatedAtLabel
+    }.Where(s => !string.IsNullOrEmpty(s)));
 }
 
 public sealed partial class PeriodItem : ObservableObject
@@ -162,7 +171,9 @@ public sealed partial class PlansViewModel : ObservableObject
     [ObservableProperty] private string planName = "—";
     [ObservableProperty] private string expiryLabel = "—";
     [ObservableProperty] private int daysLeft;
-    [ObservableProperty] private int deviceLimit;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DevicesCountLabel))]
+    private int deviceLimit;
     [ObservableProperty] private string? customerId;
     [ObservableProperty] private bool refreshing;
     [ObservableProperty] private int selectedMonths = 1;
@@ -220,6 +231,17 @@ public sealed partial class PlansViewModel : ObservableObject
     // за "обратитесь в поддержку" (см. комментарий у DeviceDto в ApiModels.cs).
     [ObservableProperty] private bool devicesDeleteSupportOnly;
     public bool HasDevices => _subscriptionId != null;
+    /// <summary>"N из M" рядом с заголовком "Устройства" — DeviceLimit уже приходит с
+    /// /api/subscriptions, просто раньше нигде не показывался. Пусто, если лимита нет (0).</summary>
+    public string DevicesCountLabel => DeviceLimit > 0 ? $"{Devices.Count} из {DeviceLimit}" : "";
+
+    /// <summary>customer_discount_percent с /api/dashboard/plans — 0, если у клиента нет
+    /// персональной скидки; тогда бейдж просто не показываем.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PersonalDiscountLabel))]
+    private int personalDiscountPercent;
+
+    public string PersonalDiscountLabel => $"Персональная скидка: −{PersonalDiscountPercent}%";
 
     public ObservableCollection<PeriodItem> Periods { get; } = new();
     public ObservableCollection<PlanItem> Plans { get; } = new();
@@ -263,6 +285,7 @@ public sealed partial class PlansViewModel : ObservableObject
                 foreach (var d in devices) Devices.Add(ToDeviceItem(d));
             }
             catch { /* устройства — вспомогательная секция, не критична для остального экрана */ }
+            OnPropertyChanged(nameof(DevicesCountLabel));
         }
 
         // Свежая по CreatedAt первая — порядок с бэкенда не гарантирован (см. BroadcastNotifier).
@@ -286,6 +309,7 @@ public sealed partial class PlansViewModel : ObservableObject
         {
             var response = await _api.GetPlansAsync();
             _rawPlans = response.Plans;
+            PersonalDiscountPercent = (int)(response.CustomerDiscountPercent ?? 0);
 
             var months = _rawPlans.SelectMany(p => p.Prices)
                 .Where(p => p.PriceType == "base")
@@ -352,7 +376,8 @@ public sealed partial class PlansViewModel : ObservableObject
              : !string.IsNullOrWhiteSpace(d.Platform) ? d.Platform
              : d.Hwid[..Math.Min(8, d.Hwid.Length)],
         Platform = d.Platform,
-        CreatedAtLabel = d.CreatedAt is { } ca ? DateFormat.FormatDate(ca) : null
+        CreatedAtLabel = d.CreatedAt is { } ca ? DateFormat.FormatDate(ca) : null,
+        ConnectedVia = !string.IsNullOrWhiteSpace(d.UserAgent) ? d.UserAgent : null
     };
 
     [RelayCommand]
