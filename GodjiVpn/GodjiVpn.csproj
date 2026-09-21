@@ -18,7 +18,7 @@
     <Platforms>x64</Platforms>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>false</SelfContained>
-    <Version>1.0.32</Version>
+    <Version>1.0.33</Version>
     <ApplicationIcon>Assets\Images\app.ico</ApplicationIcon>
   </PropertyGroup>
 

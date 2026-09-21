@@ -104,6 +104,13 @@ public sealed class VpnEngine : INotifyPropertyChanged
         Directory.CreateDirectory(StateDir);
     }
 
+    /// <summary>До 3 попыток с короткой паузой между ними вместо немедленной сдачи на первой же
+    /// переходной неудаче (порт временно занят осиротевшим процессом, медленная инициализация
+    /// Wintun, разовый сбой сети) — раньше пользователю приходилось вручную жать "Включить"
+    /// заново при том, что вторая попытка почти наверняка сработала бы сама. Порт из Android
+    /// (67c25fd: GodjiVpnService.performConnect retries up to 3 times).</summary>
+    private const int MaxConnectAttempts = 3;
+
     public async Task ConnectAsync(VlessNode node)
     {
         await _lifecycleLock.WaitAsync().ConfigureAwait(false);
@@ -114,83 +121,25 @@ public sealed class VpnEngine : INotifyPropertyChanged
             LastError = null;
             LogEngine("ConnectAsync: start");
 
-            // Осиротевшие xray.exe/sing-box.exe от прошлой аварийно завершённой сессии
-            // (жёсткий Kill() иногда не убивает процесс — см. Teardown) держат наш SOCKS-порт
-            // занятым или Wintun-адаптер захваченным — новый xray.exe тогда не может
-            // стартовать ("Only one usage of each socket address..."), а наша проверка
-            // готовности SOCKS ошибочно считает готовым ЧУЖОЙ старый listener — конкретно так
-            // и проявлялось "VPN не работает" на практике.
-            KillStrayCoreProcesses();
-            // Наши же осиротевшие процессы уже отловлены выше — если порт 10808 всё ещё занят
-            // после этого, значит слушает кто-то посторонний (Happ, Incy, любой другой v2ray-
-            // клиент, запущенный параллельно). Явная проверка ДО старта xray.exe — иначе
-            // WaitForSocksReadyAsync ниже успел бы принять этот чужой listener за наш готовый
-            // (TCP-connect к нему отвечает мгновенно, раньше, чем наш xray.exe вообще успевает
-            // стартовать или упасть на занятом порту), и весь трафик пользователя тихо ушёл бы
-            // через чужое приложение вместо нашего сервера.
-            EnsurePortFree(SocksPort);
-            // Wintun-драйвер переиспользует один и тот же адаптер между запусками (см.
-            // WaitForAdapterAsync) — а значит и IP, оставшийся на нём от ПРЕДЫДУЩЕЙ сессии
-            // (нативный tun-inbound xray, отдельные тесты и т.п.), тоже никуда не девается.
-            // sing-box, поднимая tun, пытается сам назначить свой address и падает с "The
-            // object already exists", если тот уже там висит — чистим адаптер заранее.
-            await CleanupStaleAdapterAsync().ConfigureAwait(false);
-
-            // Должно определяться ДО того, как sing-box переключит системный default route на
-            // TUN — иначе этот же трюк уже вернёт адрес самого TUN-адаптера, а не реального
-            // физического интерфейса. См. комментарий у sendThrough в WriteXrayConfig.
-            var physicalIp = GetLocalOutboundIp();
-            LogEngine($"physical outbound IP: {physicalIp ?? "(не определён)"}");
-
-            var xrayConfigPath = await WriteXrayConfigAsync(node, physicalIp).ConfigureAwait(false);
-            _xrayProcess = StartProcess(
-                Path.Combine(RuntimeDir, "xray.exe"), $"run -c \"{xrayConfigPath}\"",
-                RuntimeDir, out _xrayLog, "xray.log",
-                env => env["XRAY_LOCATION_ASSET"] = RuntimeDir);
-            LogEngine($"xray.exe started, pid={_xrayProcess.Id}");
-            AttachExitWatch(_xrayProcess, "xray.exe");
-
-            await WaitForSocksReadyAsync(_xrayProcess, TimeSpan.FromSeconds(10)).ConfigureAwait(false);
-            LogEngine("SOCKS ready");
-
-            // Системный захват трафика — отдельным процессом sing-box.exe, а не внутри
-            // xray.exe (пробовали оба других варианта — tun2socks и нативный "tun" inbound
-            // xray-core — см. комментарий класса). sing-box поднимает Wintun-адаптер и сам,
-            // через auto_route/auto_detect_interface (см. WriteSingBoxConfig), назначает ему
-            // адрес/DNS/default route и привязывает форвардинг на локальный SOCKS xray.exe —
-            // ровно та же роль, что раньше играл tun2socks, только зрелой, специально под это
-            // заточенной реализацией.
-            var singBoxConfigPath = WriteSingBoxConfig();
-            _singBoxProcess = StartProcess(
-                Path.Combine(RuntimeDir, "sing-box.exe"), $"run -c \"{singBoxConfigPath}\"",
-                RuntimeDir, out _singBoxLog, "sing-box.log");
-            LogEngine($"sing-box.exe started, pid={_singBoxProcess.Id}");
-            AttachExitWatch(_singBoxProcess, "sing-box.exe");
-
-            // 25с оказалось мало у реального пользователя — по логу sing-box адаптер (с уже
-            // ходящим через него трафиком) поднимался почти к самому краю этого окна на его
-            // машине; 40с даёт запас на медленную инициализацию Wintun/сетевого профиля
-            // Windows, не удлиняя типичный (быстрый) случай — цикл возвращается сразу же, как
-            // адаптер найден, а не ждёт полный таймаут.
-            _actualAdapterName = await WaitForAdapterAsync(TimeSpan.FromSeconds(40)).ConfigureAwait(false);
-            LogEngine($"adapter found: {_actualAdapterName}");
-
-            // Пока IsRunning ещё false, OnCoreProcessExitedAsync на смерть любого из ядер молча
-            // выходит (это "штатное" состояние для завершения ПОСЛЕ отключения) — то есть если
-            // xray/sing-box успели упасть где-то между своим стартом и этой точкой (а такое
-            // бывает — см. историю, когда xray падал через ~150мс после старта из-за занятого
-            // порта, пока SOCKS-проверка успевала застать ещё не закрывшийся listener ЧУЖОГО
-            // процесса), само подключение раньше всё равно объявлялось успешным. Явная
-            // проверка здесь — последний рубеж перед тем, как показать пользователю "Подключено".
-            if (_xrayProcess.HasExited || _singBoxProcess.HasExited)
+            for (var attempt = 1; attempt <= MaxConnectAttempts; attempt++)
             {
-                var deadLabel = _xrayProcess.HasExited ? "xray.exe" : "sing-box.exe";
-                throw new InvalidOperationException($"{deadLabel} завершился во время подключения — см. Runtime/logs/.");
+                try
+                {
+                    await ConnectAttemptAsync(node).ConfigureAwait(false);
+                    ConnectedSinceUtc = DateTime.UtcNow;
+                    IsRunning = true;
+                    LogEngine("ConnectAsync: success, IsRunning=true");
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    LastError = ex.Message;
+                    LogEngine($"ConnectAsync: попытка {attempt}/{MaxConnectAttempts} FAILED — {ex}");
+                    Teardown();
+                    if (attempt == MaxConnectAttempts) throw;
+                    await Task.Delay(TimeSpan.FromSeconds(2)).ConfigureAwait(false);
+                }
             }
-
-            ConnectedSinceUtc = DateTime.UtcNow;
-            IsRunning = true;
-            LogEngine("ConnectAsync: success, IsRunning=true");
         }
         catch (Exception ex)
         {
@@ -202,6 +151,83 @@ public sealed class VpnEngine : INotifyPropertyChanged
         {
             IsConnecting = false;
             _lifecycleLock.Release();
+        }
+    }
+
+    private async Task ConnectAttemptAsync(VlessNode node)
+    {
+        // Осиротевшие xray.exe/sing-box.exe от прошлой аварийно завершённой сессии
+        // (жёсткий Kill() иногда не убивает процесс — см. Teardown) держат наш SOCKS-порт
+        // занятым или Wintun-адаптер захваченным — новый xray.exe тогда не может
+        // стартовать ("Only one usage of each socket address..."), а наша проверка
+        // готовности SOCKS ошибочно считает готовым ЧУЖОЙ старый listener — конкретно так
+        // и проявлялось "VPN не работает" на практике.
+        KillStrayCoreProcesses();
+        // Наши же осиротевшие процессы уже отловлены выше — если порт 10808 всё ещё занят
+        // после этого, значит слушает кто-то посторонний (Happ, Incy, любой другой v2ray-
+        // клиент, запущенный параллельно). Явная проверка ДО старта xray.exe — иначе
+        // WaitForSocksReadyAsync ниже успел бы принять этот чужой listener за наш готовый
+        // (TCP-connect к нему отвечает мгновенно, раньше, чем наш xray.exe вообще успевает
+        // стартовать или упасть на занятом порту), и весь трафик пользователя тихо ушёл бы
+        // через чужое приложение вместо нашего сервера.
+        EnsurePortFree(SocksPort);
+        // Wintun-драйвер переиспользует один и тот же адаптер между запусками (см.
+        // WaitForAdapterAsync) — а значит и IP, оставшийся на нём от ПРЕДЫДУЩЕЙ сессии
+        // (нативный tun-inbound xray, отдельные тесты и т.п.), тоже никуда не девается.
+        // sing-box, поднимая tun, пытается сам назначить свой address и падает с "The
+        // object already exists", если тот уже там висит — чистим адаптер заранее.
+        await CleanupStaleAdapterAsync().ConfigureAwait(false);
+
+        // Должно определяться ДО того, как sing-box переключит системный default route на
+        // TUN — иначе этот же трюк уже вернёт адрес самого TUN-адаптера, а не реального
+        // физического интерфейса. См. комментарий у sendThrough в WriteXrayConfig.
+        var physicalIp = GetLocalOutboundIp();
+        LogEngine($"physical outbound IP: {physicalIp ?? "(не определён)"}");
+
+        var xrayConfigPath = await WriteXrayConfigAsync(node, physicalIp).ConfigureAwait(false);
+        _xrayProcess = StartProcess(
+            Path.Combine(RuntimeDir, "xray.exe"), $"run -c \"{xrayConfigPath}\"",
+            RuntimeDir, out _xrayLog, "xray.log",
+            env => env["XRAY_LOCATION_ASSET"] = RuntimeDir);
+        LogEngine($"xray.exe started, pid={_xrayProcess.Id}");
+        AttachExitWatch(_xrayProcess, "xray.exe");
+
+        await WaitForSocksReadyAsync(_xrayProcess, TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+        LogEngine("SOCKS ready");
+
+        // Системный захват трафика — отдельным процессом sing-box.exe, а не внутри
+        // xray.exe (пробовали оба других варианта — tun2socks и нативный "tun" inbound
+        // xray-core — см. комментарий класса). sing-box поднимает Wintun-адаптер и сам,
+        // через auto_route/auto_detect_interface (см. WriteSingBoxConfig), назначает ему
+        // адрес/DNS/default route и привязывает форвардинг на локальный SOCKS xray.exe —
+        // ровно та же роль, что раньше играл tun2socks, только зрелой, специально под это
+        // заточенной реализацией.
+        var singBoxConfigPath = WriteSingBoxConfig();
+        _singBoxProcess = StartProcess(
+            Path.Combine(RuntimeDir, "sing-box.exe"), $"run -c \"{singBoxConfigPath}\"",
+            RuntimeDir, out _singBoxLog, "sing-box.log");
+        LogEngine($"sing-box.exe started, pid={_singBoxProcess.Id}");
+        AttachExitWatch(_singBoxProcess, "sing-box.exe");
+
+        // 25с оказалось мало у реального пользователя — по логу sing-box адаптер (с уже
+        // ходящим через него трафиком) поднимался почти к самому краю этого окна на его
+        // машине; 40с даёт запас на медленную инициализацию Wintun/сетевого профиля
+        // Windows, не удлиняя типичный (быстрый) случай — цикл возвращается сразу же, как
+        // адаптер найден, а не ждёт полный таймаут.
+        _actualAdapterName = await WaitForAdapterAsync(TimeSpan.FromSeconds(40)).ConfigureAwait(false);
+        LogEngine($"adapter found: {_actualAdapterName}");
+
+        // Пока IsRunning ещё false, OnCoreProcessExitedAsync на смерть любого из ядер молча
+        // выходит (это "штатное" состояние для завершения ПОСЛЕ отключения) — то есть если
+        // xray/sing-box успели упасть где-то между своим стартом и этой точкой (а такое
+        // бывает — см. историю, когда xray падал через ~150мс после старта из-за занятого
+        // порта, пока SOCKS-проверка успевала застать ещё не закрывшийся listener ЧУЖОГО
+        // процесса), само подключение раньше всё равно объявлялось успешным. Явная
+        // проверка здесь — последний рубеж перед тем, как показать пользователю "Подключено".
+        if (_xrayProcess.HasExited || _singBoxProcess.HasExited)
+        {
+            var deadLabel = _xrayProcess.HasExited ? "xray.exe" : "sing-box.exe";
+            throw new InvalidOperationException($"{deadLabel} завершился во время подключения — см. Runtime/logs/.");
         }
     }
 
