@@ -37,10 +37,14 @@ public sealed class CustomNodeStore
         .ToList();
 
     /// <summary>Принимает сырой JSON клиентского профиля (как есть, тот же формат, что и у
-    /// узлов подписки) — вытаскивает host/port/remarks из первого прокси-outbound'а
-    /// (outbounds[].settings.vnext[]) для отображения, сам JSON сохраняется целиком без
-    /// изменений и позже идёт в WriteXrayConfig/PingService точно как обычный узел
-    /// подписки.</summary>
+    /// узлов подписки) — вытаскивает host/port/remarks из первого прокси-outbound'а для
+    /// отображения, сам JSON сохраняется целиком без изменений и позже идёт в WriteXrayConfig/
+    /// PingService точно как обычный узел подписки. Три структуры settings, как и в
+    /// SubscriptionService.ParseJsonProfiles (держать в синхроне при добавлении протокола —
+    /// раньше здесь узнавался только vnext, и вставка Trojan/Shadowsocks/Hysteria-профиля
+    /// вручную отвергалась с "это не клиентский профиль xray", хотя xray.exe их прекрасно
+    /// понимает): vnext (VLESS/VMess), servers (Trojan/Shadowsocks), settings.address
+    /// напрямую (Hysteria v2).</summary>
     public (bool Success, string? Error) Add(string rawJson)
     {
         JsonObject? config;
@@ -49,12 +53,28 @@ public sealed class CustomNodeStore
         if (config == null) return (false, "Невалидный JSON");
 
         var outbounds = config["outbounds"]?.AsArray();
-        var proxyOutbound = outbounds?.FirstOrDefault(o => o?["settings"]?["vnext"] != null);
-        var vnext = proxyOutbound?["settings"]?["vnext"]?.AsArray()?.FirstOrDefault();
-        var host = vnext?["address"]?.GetValue<string>();
+        var proxyOutbound = outbounds?.FirstOrDefault(o =>
+            o?["settings"]?["vnext"] != null || o?["settings"]?["servers"] != null || o?["settings"]?["address"] != null);
+        var settings = proxyOutbound?["settings"];
+        string? host = null;
+        int port = 443;
+        if (settings?["vnext"]?.AsArray()?.FirstOrDefault() is { } vnext)
+        {
+            host = vnext["address"]?.GetValue<string>();
+            port = vnext["port"]?.GetValue<int>() ?? 443;
+        }
+        else if (settings?["servers"]?.AsArray()?.FirstOrDefault() is { } server)
+        {
+            host = server["address"]?.GetValue<string>();
+            port = server["port"]?.GetValue<int>() ?? 443;
+        }
+        else if (settings?["address"] != null)
+        {
+            host = settings["address"]?.GetValue<string>();
+            port = settings["port"]?.GetValue<int>() ?? 443;
+        }
         if (string.IsNullOrWhiteSpace(host))
-            return (false, "В JSON не найден адрес сервера (outbounds[].settings.vnext[].address) — это не клиентский профиль xray");
-        var port = vnext?["port"]?.GetValue<int>() ?? 443;
+            return (false, "В JSON не найден адрес сервера (outbounds[].settings) — это не клиентский профиль xray");
         var remarks = config["remarks"]?.GetValue<string>();
         var name = string.IsNullOrWhiteSpace(remarks) ? host : remarks;
 

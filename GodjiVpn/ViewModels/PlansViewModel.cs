@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using System.Diagnostics;
 using System.Windows;
 using System.Windows.Documents;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -583,6 +582,5 @@ public sealed partial class PlansViewModel : ObservableObject
         if (!string.IsNullOrEmpty(CustomerId)) Clipboard.SetText(CustomerId);
     }
 
-    private static void OpenUrl(string url) =>
-        Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+    private static void OpenUrl(string url) => UrlLauncher.TryOpen(url);
 }

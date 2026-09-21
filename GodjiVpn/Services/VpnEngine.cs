@@ -681,9 +681,17 @@ public sealed class VpnEngine : INotifyPropertyChanged
 
         try
         {
+            // adapter.Name идёт в PowerShell-командную строку внутри одинарных кавычек — сам
+            // по себе он приходит от Windows (обычно "Godji"/"Ethernet"/"Подключение по
+            // локальной сети N"), но раз имя адаптера в принципе МОЖНО переименовать (netsh/
+            // Панель управления) на что угодно, включая одинарную кавычку, не полагаемся на
+            // "обычно безопасное" значение — экранируем её удвоением, стандартный способ
+            // литерала PowerShell (O'Brien → 'O''Brien'), иначе строка вида "x' ; <команда> ; '"
+            // вырвалась бы из кавычек и выполнилась как произвольный PowerShell.
+            var escapedName = adapter.Name.Replace("'", "''");
             var psi = new ProcessStartInfo("powershell.exe",
                 "-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command " +
-                $"\"Get-NetIPAddress -InterfaceAlias '{adapter.Name}' -AddressFamily IPv4 -ErrorAction SilentlyContinue | " +
+                $"\"Get-NetIPAddress -InterfaceAlias '{escapedName}' -AddressFamily IPv4 -ErrorAction SilentlyContinue | " +
                 "Remove-NetIPAddress -Confirm:$false -ErrorAction SilentlyContinue\"")
             {
                 RedirectStandardOutput = true,

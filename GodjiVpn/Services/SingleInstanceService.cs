@@ -1,5 +1,7 @@
 using System.IO;
 using System.IO.Pipes;
+using System.Security.AccessControl;
+using System.Security.Principal;
 
 namespace GodjiVpn.Services;
 
@@ -47,6 +49,23 @@ public sealed class SingleInstanceService
         }
     }
 
+    /// <summary>Без явного PipeSecurity именованный канал создаётся с дефолтным DACL — на
+    /// практике это означало, что ЛЮБОЙ другой процесс в этой же сессии (не только другой
+    /// экземпляр GodjiVpn.exe) мог к нему подключиться и прислать что угодно. Сегодняшний
+    /// обработчик (см. StartServer ниже) фактически игнорирует содержимое — только
+    /// разворачивает окно, так что заметного вреда посторонний коннект не наносил, но раз
+    /// приложение и так работает от администратора, канал стоит явно ограничить текущим
+    /// пользователем — то же самое SID-based ограничение, которое уже даёт сама природа
+    /// "один экземпляр на пользователя" у Mutex выше, просто не полагаемся на DACL по
+    /// умолчанию, который может отличаться в зависимости от версии/политик Windows.</summary>
+    private static PipeSecurity BuildPipeSecurity()
+    {
+        var security = new PipeSecurity();
+        security.AddAccessRule(new PipeAccessRule(
+            WindowsIdentity.GetCurrent().User!, PipeAccessRights.ReadWrite, AccessControlType.Allow));
+        return security;
+    }
+
     private void StartServer()
     {
         _ = Task.Run(async () =>
@@ -55,7 +74,8 @@ public sealed class SingleInstanceService
             {
                 try
                 {
-                    await using var server = new NamedPipeServerStream(PipeName, PipeDirection.In, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
+                    await using var server = NamedPipeServerStreamAcl.Create(PipeName, PipeDirection.In, 1,
+                        PipeTransmissionMode.Byte, PipeOptions.Asynchronous, 0, 0, BuildPipeSecurity());
                     await server.WaitForConnectionAsync().ConfigureAwait(false);
                     using var reader = new StreamReader(server);
                     var line = await reader.ReadLineAsync().ConfigureAwait(false);

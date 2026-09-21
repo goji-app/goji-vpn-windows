@@ -164,6 +164,10 @@
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
 
+            <TextBlock Text="{Binding AttachmentError}" FontSize="11" Foreground="{DynamicResource DangerBrush}"
+                       TextWrapping="Wrap" Margin="0,0,0,6"
+                       Visibility="{Binding AttachmentError, Converter={StaticResource NullToVisibilityConverter}}"/>
+
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>

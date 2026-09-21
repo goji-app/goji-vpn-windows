@@ -1,8 +1,8 @@
-using System.Diagnostics;
 using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GodjiVpn.Services;
+using GodjiVpn.Utils;
 using GodjiVpn.Views;
 
 namespace GodjiVpn.ViewModels;
@@ -179,8 +179,7 @@ public sealed partial class LoginViewModel : ObservableObject
     [RelayCommand]
     private void OpenPrivacy() => OpenUrl(PrivacyUrl);
 
-    private static void OpenUrl(string url) =>
-        Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+    private static void OpenUrl(string url) => UrlLauncher.TryOpen(url);
 
     partial void OnEmailChanged(string value) => SendOtpCommand.NotifyCanExecuteChanged();
     partial void OnCodeChanged(string value) => VerifyCommand.NotifyCanExecuteChanged();

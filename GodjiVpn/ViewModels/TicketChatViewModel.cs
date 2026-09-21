@@ -27,6 +27,7 @@ public sealed class PendingAttachment
 {
     public required string FilePath { get; init; }
     public required string FileName { get; init; }
+    public required long SizeBytes { get; init; }
 }
 
 /// <summary>Аналог TicketChatScreen.kt/TicketChatViewModel.kt — переписка по одному обращению.
@@ -55,6 +56,17 @@ public sealed partial class TicketChatViewModel : ObservableObject
     [ObservableProperty] private bool sending;
     [ObservableProperty] private bool sendError;
     [ObservableProperty] private bool showLogPicker;
+    [ObservableProperty] private string? attachmentError;
+
+    // Раньше выбор файла ничем не ограничивался — при отправке весь файл читается целиком в
+    // память (File.ReadAllBytesAsync, см. SendAsync) перед тем, как уйти в MultipartFormDataContent;
+    // desktop-пользователь может легко выбрать многогигабайтное видео через системный диалог
+    // (в отличие от мобильного пикера, тут нет платформенного ограничения по умолчанию) —
+    // без явного лимита это OutOfMemoryException и падение всего приложения, а не просто
+    // неудачная отправка. Лимиты щедрые (это не защита от злоупотребления, а просто "не упасть
+    // на случайно выбранном фильме"), сервер всё равно применит свои собственные ограничения.
+    private const long MaxAttachmentBytes = 50 * 1024 * 1024;
+    private const long MaxTotalAttachmentBytes = 200 * 1024 * 1024;
 
     public ObservableCollection<MessageItem> Messages { get; } = new();
     public ObservableCollection<PendingAttachment> Attachments { get; } = new();
@@ -143,8 +155,25 @@ public sealed partial class TicketChatViewModel : ObservableObject
 
     private void AddAttachments(IEnumerable<string> paths)
     {
+        AttachmentError = null;
         foreach (var path in paths)
-            Attachments.Add(new PendingAttachment { FilePath = path, FileName = Path.GetFileName(path) });
+        {
+            long size;
+            try { size = new FileInfo(path).Length; } catch { continue; }
+
+            if (size > MaxAttachmentBytes)
+            {
+                AttachmentError = $"«{Path.GetFileName(path)}» слишком большой (лимит {MaxAttachmentBytes / (1024 * 1024)} МБ) — не добавлен";
+                continue;
+            }
+            if (Attachments.Sum(a => a.SizeBytes) + size > MaxTotalAttachmentBytes)
+            {
+                AttachmentError = $"Суммарный размер вложений превысил {MaxTotalAttachmentBytes / (1024 * 1024)} МБ — «{Path.GetFileName(path)}» не добавлен";
+                continue;
+            }
+
+            Attachments.Add(new PendingAttachment { FilePath = path, FileName = Path.GetFileName(path), SizeBytes = size });
+        }
         SendCommand.NotifyCanExecuteChanged();
     }
 

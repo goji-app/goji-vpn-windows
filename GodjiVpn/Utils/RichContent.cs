@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -636,9 +635,5 @@ public static class RichContent
         return next;
     }
 
-    private static void OpenUrl(string url)
-    {
-        try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); }
-        catch { /* некликабельная/битая ссылка, или Windows Maps не установлен — не критично */ }
-    }
+    private static void OpenUrl(string url) => UrlLauncher.TryOpen(url);
 }
