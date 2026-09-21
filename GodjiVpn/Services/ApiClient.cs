@@ -97,8 +97,15 @@ public sealed class ApiClient
     public async Task<SubscriptionInfo> GetSubscriptionAsync(long id, CancellationToken ct = default) =>
         await GetAsync<SubscriptionInfo>($"api/subscriptions/{id}", ct).ConfigureAwait(false);
 
-    public async Task<PlansResponse> GetPlansAsync(CancellationToken ct = default) =>
-        await GetAsync<PlansResponse>("api/dashboard/plans", ct).ConfigureAwait(false);
+    /// <summary>subscriptionId — веб-версия передаёт его как ?subscription_id=, персональная
+    /// скидка (customer_discount_percent) считается бэкендом ИМЕННО относительно конкретной
+    /// подписки, а не аккаунта вообще; без него ответ — обобщённый каталог без привязки к
+    /// подписке, где то же поле может означать что-то другое (на Android живой тест без
+    /// subscription_id вернул 100%, что для обычного тарифа неправдоподобно).</summary>
+    public async Task<PlansResponse> GetPlansAsync(long? subscriptionId = null, CancellationToken ct = default) =>
+        await GetAsync<PlansResponse>(
+            subscriptionId is { } id ? $"api/dashboard/plans?subscription_id={id}" : "api/dashboard/plans",
+            ct).ConfigureAwait(false);
 
     /// <summary>Страница "Мои рассылки"/"Новости" веб-версии (#/my-broadcasts) — список уже
     /// отправленных пользователю новостей/объявлений.</summary>

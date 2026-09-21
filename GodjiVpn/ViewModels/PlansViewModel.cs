@@ -132,6 +132,9 @@ public sealed partial class PlanItem : ObservableObject
     public required string FullDescription { get; init; }
     public required string PriceLabel { get; init; }
     public required bool IsCurrent { get; init; }
+    /// <summary>Реальная единица периода у ЭТОЙ конкретной цены (обычно "month", но не
+    /// гарантия — берём как есть) — нужна для defaultPeriodUnit в ссылке "Продлить".</summary>
+    public required string PeriodUnit { get; init; }
 
     [ObservableProperty] private bool isExpanded;
 
@@ -241,7 +244,7 @@ public sealed partial class PlansViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(PersonalDiscountLabel))]
     private int personalDiscountPercent;
 
-    public string PersonalDiscountLabel => $"Персональная скидка: −{PersonalDiscountPercent}%";
+    public string PersonalDiscountLabel => $"🏷️ Персональная скидка: −{PersonalDiscountPercent}%";
 
     public ObservableCollection<PeriodItem> Periods { get; } = new();
     public ObservableCollection<PlanItem> Plans { get; } = new();
@@ -307,7 +310,7 @@ public sealed partial class PlansViewModel : ObservableObject
 
         try
         {
-            var response = await _api.GetPlansAsync();
+            var response = await _api.GetPlansAsync(_subscriptionId);
             _rawPlans = response.Plans;
             PersonalDiscountPercent = (int)(response.CustomerDiscountPercent ?? 0);
 
@@ -501,7 +504,8 @@ public sealed partial class PlansViewModel : ObservableObject
                 Name = plan.Name,
                 FullDescription = plan.Description,
                 PriceLabel = priceLabel,
-                IsCurrent = plan.Name == PlanName
+                IsCurrent = plan.Name == PlanName,
+                PeriodUnit = price?.PeriodUnit ?? "month"
             });
         }
         foreach (var p in Periods) p.IsSelected = p.Months == SelectedMonths;
@@ -515,8 +519,21 @@ public sealed partial class PlansViewModel : ObservableObject
         Refreshing = false;
     }
 
+    /// <summary>Открывает сразу /checkout с уже известным тарифом и периодом — раньше кнопка
+    /// вела на общий /#/plans, откуда пришлось бы заново выбирать тариф на сайте, хотя
+    /// "Продлить" уже подразумевает именно текущий тариф на уже выбранный здесь период. Сама
+    /// оплата всё равно происходит на странице платёжного шлюза (ЮKassa/Т-Банк/Robokassa/…) —
+    /// приложение не участвует в передаче данных карты. Без определённого текущего тарифа
+    /// (например список ещё не подгрузился) — прежнее поведение, общий /#/plans.</summary>
     [RelayCommand]
-    private void OpenRenew() => OpenUrl(RenewUrl);
+    private void OpenRenew()
+    {
+        var currentPlan = Plans.FirstOrDefault(p => p.IsCurrent);
+        var url = currentPlan != null
+            ? $"https://gojihub.xyz/#/checkout?plan={currentPlan.Id}&defaultPeriod={SelectedMonths}&defaultPeriodUnit={currentPlan.PeriodUnit}"
+            : RenewUrl;
+        OpenUrl(url);
+    }
 
     [RelayCommand]
     private void OpenSupport() => OpenUrl(SupportUrl);
